@@ -2,6 +2,54 @@
 
 import 'dart:ui';
 
+/// ===============================
+/// LAUNDRIIN COLOR SYSTEM
+/// ===============================
+
+/// Base / Neutral
+
+const Color white = Color(0xFFFFFFFF);
+const Color whiteSoft = Color(0xFFF9FAFB);
+
+const Color gray50 = Color(0xFFF9FAFB);
+const Color gray100 = Color(0xFFF3F4F6);
+const Color gray200 = Color(0xFFE5E7EB);
+const Color gray300 = Color(0xFFD1D5DB);
+const Color gray400 = Color(0xFF9CA3AF);
+const Color gray500 = Color(0xFF6B7280);
+
+/// Primary Blue (Brand)
+const Color blue50 = Color(0xFFEFF6FF);
+const Color blue100 = Color(0xFFDBEAFE);
+const Color blue200 = Color(0xFFBFDBFE);
+const Color blue300 = Color(0xFF93C5FD);
+const Color blue400 = Color(0xFF60A5FA);
+const Color blue500 = Color(0xFF3B82F6); // main
+const Color blue600 = Color(0xFF2563EB); // button
+const Color blue700 = Color(0xFF1D4ED8); // gradient end
+const Color blue800 = Color(0xFF1E40AF);
+
+/// Backgrounds
+const Color bgApp = gray100; // background utama app
+const Color bgCard = white; // card / bungkus putih
+const Color bgInput = whiteSoft; // background input
+
+/// Borders
+const Color borderLight = gray200;
+const Color borderFocus = blue500;
+
+/// Text
+const Color textPrimary = black900;
+const Color textSecondary = gray500;
+const Color textMuted = gray400;
+
+/// Status (optional nanti)
+const Color success = Color(0xFF22C55E);
+const Color warning = Color(0xFFF59E0B);
+const Color danger = Color(0xFFEF4444);
+
+// ===============================
+
 /// Base color
 const Color primaryColor = Color(0xFF3ec9cd);
 const Color secondaryColor = Color(0xFFDB6925);
@@ -70,17 +118,17 @@ const Color green800 = Color(0xFF1f5c27);
 const Color green900 = Color(0xFF1b4c23);
 
 /// Blue
-const Color blue50 = Color(0xFFecf1fc);
-const Color blue100 = Color(0xFFc4d5f6);
-const Color blue200 = Color(0xFFa8c0f2);
-const Color blue300 = Color(0xFF80a3ec);
-const Color blue400 = Color(0xFF6791e9);
-const Color blue500 = Color(0xFF4176e3);
-const Color blue500_20 = Color(0xff4176e333);
-const Color blue600 = Color(0xFF3b6bcf);
-const Color blue700 = Color(0xFF2e54a1);
-const Color blue800 = Color(0xFF24417d);
-const Color blue900 = Color(0xFF1b325f);
+// const Color blue50 = Color(0xFFecf1fc);
+// const Color blue100 = Color(0xFFc4d5f6);
+// const Color blue200 = Color(0xFFa8c0f2);
+// const Color blue300 = Color(0xFF80a3ec);
+// const Color blue400 = Color(0xFF6791e9);
+// const Color blue500 = Color(0xFF4176e3);
+// const Color blue500_20 = Color(0xff4176e333);
+// const Color blue600 = Color(0xFF3b6bcf);
+// const Color blue700 = Color(0xFF2e54a1);
+// const Color blue800 = Color(0xFF24417d);
+// const Color blue900 = Color(0xFF1b325f);
 
 /// Yellow
 const Color yellow50 = Color(0xFFfef6eb);
@@ -116,8 +164,8 @@ const Color textNeutralSecondary = Color(0xFF9e9e9e);
 const Color textWhitePrimary = Color(0xFFFFFFFF);
 const Color textWhiteSecondary = Color(0xFFe0e0e0);
 const Color textDisabled = Color(0xFFa8a8a8);
-const Color textPrimary = Color(0xFF4845b5);
-const Color textSecondary = Color(0xFFebad07);
+// const Color textPrimary = Color(0xFF4845b5);
+// const Color textSecondary = Color(0xFFebad07);
 const Color textDanger = Color(0xFFff4542);
 const Color textSuccess = Color(0xFF21742b);
 const Color textWarning = Color(0xFFf19e36);

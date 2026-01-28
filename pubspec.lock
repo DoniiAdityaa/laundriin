@@ -33,6 +33,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  archive:
+    dependency: transitive
+    description:
+      name: archive
+      sha256: "2fde1607386ab523f7a36bb3e7edb43bd58e6edaf2ffb29d8a6d578b297fdbbd"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.7"
   args:
     dependency: transitive
     description:
@@ -678,6 +686,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.12.0"
+  flutter_flavorizr:
+    dependency: "direct main"
+    description:
+      name: flutter_flavorizr
+      sha256: "7ac1a53e95d36e96017bbf4aa94023dc652e455de3f0ce9c80e9eaa274c73e81"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.1"
   flutter_fortune_wheel:
     dependency: "direct main"
     description:
@@ -1096,6 +1112,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  image:
+    dependency: transitive
+    description:
+      name: image
+      sha256: "492bd52f6c4fbb6ee41f781ff27765ce5f627910e1e0cbecfa3d9add5562604c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.7.2"
   image_picker:
     dependency: "direct main"
     description:
@@ -1320,6 +1344,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  mason_logger:
+    dependency: transitive
+    description:
+      name: mason_logger
+      sha256: "6d5a989ff41157915cb5162ed6e41196d5e31b070d2f86e1c2edf216996a158c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.3"
   matcher:
     dependency: transitive
     description:
@@ -1648,6 +1680,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.2"
+  posix:
+    dependency: transitive
+    description:
+      name: posix
+      sha256: "6323a5b0fa688b6a010df4905a56b00181479e6d10534cecfecede2aa55add61"
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.0.3"
   protobuf:
     dependency: transitive
     description:
@@ -1885,6 +1925,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.10.1"
+  sprintf:
+    dependency: transitive
+    description:
+      name: sprintf
+      sha256: "1fc9ffe69d4df602376b52949af107d8f5703b77cda567c4d7d86a0693120f23"
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.0.0"
   sqflite:
     dependency: "direct main"
     description:
