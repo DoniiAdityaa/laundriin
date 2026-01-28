@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
-import 'package:laundriin/config/service_locator.dart';
-import 'package:laundriin/config/user_preference.dart';
 import 'package:laundriin/features/auth/login_screen.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 

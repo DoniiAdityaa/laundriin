@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:laundriin/features/home/home_screen.dart';
+import 'package:laundriin/features/orders/orders_screen.dart';
+import 'package:laundriin/features/reports/reports_screen.dart';
+import 'package:laundriin/features/settings/setting_screen.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 
@@ -19,9 +22,9 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    // const OrdersScreen(),
-    // const ReportsScreen(),
-    // const ProfileScreen(),
+    const OrdersScreen(),
+    const ReportsScreen(),
+    const SettingScreen(),
   ];
   @override
   Widget build(BuildContext context) {
