@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:laundriin/ui/color.dart';
+import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/ui/typography.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -22,10 +25,51 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
-      // Simulasi login
-      Navigator.pushReplacementNamed(context, '/home');
+      setState(() => _isLoading = true);
+
+      try {
+        // Login dengan Firebase
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainNavigation()),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        setState(() => _isLoading = false);
+
+        String errorMessage = "Login gagal";
+        if (e.code == 'user-not-found') {
+          errorMessage = "Email tidak terdaftar";
+        } else if (e.code == 'wrong-password') {
+          errorMessage = "Password salah";
+        } else if (e.code == 'invalid-email') {
+          errorMessage = "Format email tidak valid";
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } catch (e) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -165,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
-                        style: xsBold.copyWith(color: textPrimary),
+                        style: xsRegular.copyWith(color: textPrimary),
                         decoration: InputDecoration(
                           hintText: "your password",
                           hintStyle: xsRegular.copyWith(color: textMuted),
@@ -236,22 +280,34 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(16),
                               ),
                             ),
-                            onPressed: _login,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.login_rounded, color: white),
-                                const SizedBox(width: 10),
-                                Text(
-                                  "Login",
-                                  style: xsBold.copyWith(
-                                    color: white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
+                            onPressed: _isLoading ? null : _login,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        white,
+                                      ),
+                                      strokeWidth: 3,
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.login_rounded,
+                                          color: white),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        "Login",
+                                        style: xsBold.copyWith(
+                                          color: white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                       ),

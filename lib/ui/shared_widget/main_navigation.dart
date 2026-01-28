@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:laundriin/features/home/home_screen.dart';
 import 'package:laundriin/ui/color.dart';
+import 'package:laundriin/ui/typography.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -55,22 +57,22 @@ class _MainNavigationState extends State<MainNavigation> {
           children: [
             _navItem(
               index: 0,
-              icon: Icons.home_rounded,
+              iconSvg: "assets/svg/Home.svg",
               label: "Home",
             ),
             _navItem(
               index: 1,
-              icon: Icons.receipt_long_rounded,
+              iconSvg: "assets/svg/Document.svg",
               label: "Orders",
             ),
             _navItem(
               index: 2,
-              icon: Icons.bar_chart_rounded,
+              iconSvg: "assets/svg/Chart.svg",
               label: "Reports",
             ),
             _navItem(
               index: 3,
-              icon: Icons.settings_rounded,
+              iconSvg: "assets/svg/Setting.svg",
               label: "Settings",
             ),
           ],
@@ -81,7 +83,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   Widget _navItem({
     required int index,
-    required IconData icon,
+    required String iconSvg,
     required String label,
   }) {
     final bool isActive = _selectedIndex == index;
@@ -97,20 +99,17 @@ class _MainNavigationState extends State<MainNavigation> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 26,
+            SvgPicture.asset(
+              iconSvg,
+              width: 24,
+              height: 24,
               color: isActive ? _activeColor : _inactiveColor,
             ),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isActive ? _activeColor : _inactiveColor,
-              ),
-            ),
+            Text(label,
+                style: xsRegular.copyWith(
+                  color: isActive ? _activeColor : _inactiveColor,
+                )),
           ],
         ),
       ),

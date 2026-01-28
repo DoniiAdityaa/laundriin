@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
 import 'package:laundriin/config/service_locator.dart';
 import 'package:laundriin/config/user_preference.dart';
 import 'package:laundriin/features/auth/login_screen.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -40,11 +47,14 @@ class MyApp extends StatelessWidget {
   }
 
   Widget _initialScreen() {
-    final token = serviceLocator<UserPreference>().getToken();
+    // Cek apakah user sudah login di Firebase
+    final user = FirebaseAuth.instance.currentUser;
 
-    if (token != null && token.isNotEmpty) {
+    if (user != null) {
+      // User sudah login, langsung ke dashboard
       return const MainNavigation();
     } else {
+      // User belum login, ke login screen
       return const LoginScreen();
     }
   }

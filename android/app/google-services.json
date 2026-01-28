@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "551908410664",
+    "project_id": "laundriin",
+    "storage_bucket": "laundriin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:551908410664:android:ab36bfb66f35a9a99afc1d",
+        "android_client_info": {
+          "package_name": "com.example.laundriin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6TKf4W8ac6wKENxwtCIlqc9N9x91FnVw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
