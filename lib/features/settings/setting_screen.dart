@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:laundriin/features/settings/shop_information.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
@@ -174,107 +175,53 @@ class _SettingScreenState extends State<SettingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title
-              const Text(
-                "Settings",
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF111827),
-                ),
-              ),
+              const Text("Settings", style: lBold),
               const SizedBox(height: 14),
 
               // ===== Shop Information Section =====
-              _buildCardSection(
-                icon: Icons.store_rounded,
-                title: "Shop Information",
-                onTap: () {
-                  // TODO: navigate to shop info detail
-                },
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 15),
-                    const Text(
-                      "Shop Name",
-                      style: xsRegular,
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _shopNameC,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: bgInput,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(color: borderLight),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide:
-                              BorderSide(color: borderFocus, width: 1.2),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildMenuCard(
+                  icon: Icons.store_rounded,
+                  title: 'Shop Information',
+                  subtitle: 'Manage your shop information',
+                  iconBgColor: const Color(0xFFDCF0FF),
+                  iconColor: blue600,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const ShopInformation()),
+                    );
+                  }),
 
               const SizedBox(height: 14),
 
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: borderLight, // bg grey untuk bungkus
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  children: [
-                    // ===== Menu Cards =====
-                    _buildMenuCard(
-                      icon: Icons.attach_money,
-                      title: "Pricing Settings",
-                      subtitle: "Edit harga kiloan & non-kiloan",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const PricingScreen(),
-                          ),
-                        );
-                      },
+              // ===== Menu Cards =====
+              _buildMenuCard(
+                icon: Icons.attach_money,
+                title: "Pricing Settings",
+                subtitle: "set kiloan and non-kiloan item prices",
+                iconBgColor: const Color(0xFFDCFFE6),
+                iconColor: green600,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PricingScreen(),
                     ),
-                    const SizedBox(height: 10),
-
-                    _buildMenuCard(
-                      icon: Icons.chat_bubble_outline_outlined,
-                      title: "Whatsapp Message Template",
-                      subtitle: "Atur template pesan WhatsApp",
-                      onTap: () {},
-                    ),
-                    // const SizedBox(height: 10),
-
-                    // _buildMenuCard(
-                    //   icon: Icons.receipt_long_rounded,
-                    //   title: "Receipt & Printer",
-                    //   subtitle: "Nota, format struk, printer",
-                    //   onTap: () {},
-                    // ),
-                    // const SizedBox(height: 10),
-
-                    // _buildMenuCard(
-                    //   icon: Icons.security_rounded,
-                    //   title: "Security",
-                    //   subtitle: "Ubah password & logout",
-                    //   onTap: () {},
-                    // ),
-                  ],
-                ),
+                  );
+                },
               ),
+              const SizedBox(height: 10),
+
+              _buildMenuCard(
+                icon: Icons.chat_bubble_outline_outlined,
+                title: "Whatsapp Template",
+                subtitle: "customize notification messages",
+                iconBgColor: const Color(0xFFFFF0DC),
+                iconColor: const Color(0xFFEA8C2E),
+                onTap: () {},
+              ),
+
               const SizedBox(height: 20),
 
               // ===== Logout Button =====
@@ -321,64 +268,6 @@ class _SettingScreenState extends State<SettingScreen> {
   }
 
   // =========================
-  // Card Section Builder
-  // =========================
-  Widget _buildCardSection({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    required Widget child,
-  }) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      decoration: BoxDecoration(
-        color: bgCard,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: blue50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: blue600, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF111827),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          child,
-        ],
-      ),
-    );
-  }
-
-  // =========================
   // Menu Card Builder
   // =========================
   Widget _buildMenuCard({
@@ -386,7 +275,12 @@ class _SettingScreenState extends State<SettingScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    Color? iconBgColor,
+    Color? iconColor,
   }) {
+    final bgColor = iconBgColor ?? green100;
+    final fgColor = iconColor ?? green600;
+
     return Material(
       color: bgCard,
       borderRadius: BorderRadius.circular(18),
@@ -394,7 +288,7 @@ class _SettingScreenState extends State<SettingScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
@@ -411,10 +305,10 @@ class _SettingScreenState extends State<SettingScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: green100,
+                  color: bgColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: green600, size: 22),
+                child: Icon(icon, color: fgColor, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -423,19 +317,15 @@ class _SettingScreenState extends State<SettingScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827),
+                      style: smSemiBold.copyWith(
+                        color: const Color(0xFF111827),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF6B7280),
+                      style: xsRegular.copyWith(
+                        color: const Color(0xFF6B7280),
                       ),
                     ),
                   ],
