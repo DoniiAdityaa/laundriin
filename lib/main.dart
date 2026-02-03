@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 import 'package:laundriin/features/auth/login_screen.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
@@ -10,6 +11,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // Initialize date formatting untuk locale Indonesia
+  await initializeDateFormatting('id_ID');
   runApp(const MyApp());
 }
 
