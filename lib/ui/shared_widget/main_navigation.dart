@@ -40,7 +40,8 @@ class _MainNavigationState extends State<MainNavigation> {
       top: false,
       child: Container(
         margin: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding:
+            const EdgeInsets.symmetric(vertical: 2), // ← Kurangi dari 12 jadi 8
         decoration: BoxDecoration(
           color: bgCard,
           borderRadius: const BorderRadius.only(
@@ -67,6 +68,40 @@ class _MainNavigationState extends State<MainNavigation> {
               index: 1,
               iconSvg: "assets/svg/Document.svg",
               label: "Orders",
+            ),
+            // ===== Center FAB-like Button =====
+            Transform.translate(
+              offset: const Offset(0, -25), // ← Push ke atas (negative = up)
+              child: GestureDetector(
+                onTap: () {
+                  // Action untuk center button (tambah order)
+                  print('[TAP] Center button');
+                },
+                child: Container(
+                  width: 75,
+                  height: 75,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        blue500.withOpacity(0.95),
+                        blue600.withOpacity(0.95),
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white, // ← Putih penuh
+                      width: 6,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.add_rounded,
+                    color: Colors.white,
+                    size: 36,
+                  ),
+                ),
+              ),
             ),
             _navItem(
               index: 2,

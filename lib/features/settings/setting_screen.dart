@@ -175,7 +175,7 @@ class _SettingScreenState extends State<SettingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title
-              const Text("Settings", style: lBold),
+              const Text("Settings", style: mBold),
               const SizedBox(height: 14),
 
               // ===== Shop Information Section =====

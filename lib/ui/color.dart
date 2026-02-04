@@ -30,7 +30,7 @@ const Color blue700 = Color(0xFF1D4ED8); // gradient end
 const Color blue800 = Color(0xFF1E40AF);
 
 /// Backgrounds
-const Color bgApp = gray100; // background utama app
+const Color bgApp = Color(0xffF8F9FB); // background utama app
 const Color bgCard = white; // card / bungkus putih
 const Color bgInput = whiteSoft; // background input
 
