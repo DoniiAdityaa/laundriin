@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:laundriin/features/add_order/add_order_screen.dart';
 import 'package:laundriin/features/home/home_screen.dart';
 import 'package:laundriin/features/orders/orders_screen.dart';
 import 'package:laundriin/features/reports/reports_screen.dart';
@@ -74,8 +75,9 @@ class _MainNavigationState extends State<MainNavigation> {
               offset: const Offset(0, -25), // ← Push ke atas (negative = up)
               child: GestureDetector(
                 onTap: () {
-                  // Action untuk center button (tambah order)
-                  print('[TAP] Center button');
+                  Navigator.push(context, MaterialPageRoute(builder: (context) {
+                    return const AddOrderScreen();
+                  }));
                 },
                 child: Container(
                   width: 75,

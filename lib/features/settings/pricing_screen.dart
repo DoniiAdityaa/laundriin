@@ -16,6 +16,7 @@ class PricingScreen extends StatefulWidget {
 
 class _PricingScreenState extends State<PricingScreen> {
   final _pricePerKiloC = TextEditingController();
+  final _expressSurchargeC = TextEditingController();
   final _blankletC = TextEditingController();
   final _bedsheetC = TextEditingController();
   final _bedcoverC = TextEditingController();
@@ -70,6 +71,8 @@ class _PricingScreenState extends State<PricingScreen> {
           // Format number dengan RupiahFormatter logic (add commas)
           _pricePerKiloC.text =
               _formatNumberWithComma(data['pricePerKilo'] ?? 0);
+          _expressSurchargeC.text =
+              _formatNumberWithComma(data['expressSurcharge'] ?? 0);
           _blankletC.text = _formatNumberWithComma(data['blanket'] ?? 0);
           _bedsheetC.text = _formatNumberWithComma(data['bedsheet'] ?? 0);
           _bedcoverC.text = _formatNumberWithComma(data['bedcover'] ?? 0);
@@ -99,6 +102,7 @@ class _PricingScreenState extends State<PricingScreen> {
         {
           'pricing': {
             'pricePerKilo': _parseRupiahToInt(_pricePerKiloC.text),
+            'expressSurcharge': _parseRupiahToInt(_expressSurchargeC.text),
             'blanket': _parseRupiahToInt(_blankletC.text),
             'bedsheet': _parseRupiahToInt(_bedsheetC.text),
             'bedcover': _parseRupiahToInt(_bedcoverC.text),
@@ -133,6 +137,7 @@ class _PricingScreenState extends State<PricingScreen> {
   @override
   void dispose() {
     _pricePerKiloC.dispose();
+    _expressSurchargeC.dispose();
     _blankletC.dispose();
     _bedsheetC.dispose();
     _bedcoverC.dispose();
@@ -161,6 +166,8 @@ class _PricingScreenState extends State<PricingScreen> {
               // ===== Kilogram Pricing =====
               _buildPricingCard(
                 leadingIcon: Icons.attach_money_rounded,
+                iconColor: const Color(0xFF16A34A),
+                bgColor: const Color(0xFFEFFDF2),
                 title: "Kiloan Service",
                 subtitle: "Weight-based pricing",
                 label: "Price per Kilogram (Rp)",
@@ -169,7 +176,19 @@ class _PricingScreenState extends State<PricingScreen> {
                     "Current: Rp ${_formatNumberWithComma(kiloInt)} per kg",
               ),
               const SizedBox(height: 24),
-              // ===== Satuan Section =====
+              // ===== Express Surcharge =====
+              _buildPricingCard(
+                leadingIcon: Icons.bolt_rounded,
+                iconColor: const Color(0xFFCA8A04),
+                bgColor: const Color(0xFFFEF9C3),
+                title: "Express Service",
+                subtitle: "Additional charge for rush service",
+                label: "Express Surcharge (Rp)",
+                controller: _expressSurchargeC,
+                currentText:
+                    "Additional: Rp ${_formatNumberWithComma(_parseRupiahToInt(_expressSurchargeC.text))}",
+              ),
+              const SizedBox(height: 24),
               _buildSatuanCard(
                   leadingIcon: Icons.attach_money_rounded,
                   title: 'Non-Kiloan Items',
@@ -509,6 +528,8 @@ class _PricingScreenState extends State<PricingScreen> {
     required String label,
     required TextEditingController controller,
     required String currentText,
+    required Color bgColor,
+    required Color iconColor,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -533,10 +554,10 @@ class _PricingScreenState extends State<PricingScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: blue50,
+                  color: bgColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(leadingIcon, size: 34, color: blue600),
+                child: Icon(leadingIcon, size: 34, color: iconColor),
               ),
               const SizedBox(width: 14),
               Expanded(
