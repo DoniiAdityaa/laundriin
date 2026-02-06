@@ -29,15 +29,22 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   String? _selectedCustomerId; // Track if customer is from database
 
   // ====== STEP 2: SERVICE ORDER STATE ======
-  String _selectedCategory = 'Kiloan'; // Kiloan / Non-kiloan / Mixed
+  String _selectedCategory = 'Kiloan'; // Kiloan / Satuan / Campuran
+  String _selectedServiceType =
+      'washComplete'; // washComplete / ironing / dryWash / steamIroning
   String _selectedSpeed = 'Regular'; // Regular / Express
-  final _weightC = TextEditingController(); // For Kiloan/Mixed
-  final _qtyC = TextEditingController(); // For Non-kiloan/Mixed
+  final _weightC = TextEditingController(); // For Kiloan/Campuran
+  final _qtyC = TextEditingController(); // For Satuan/Campuran
   final _notesC = TextEditingController(); // Special notes
 
   // Pricing from database
   int _pricePerKilo = 0;
   int _expressSurcharge = 0;
+  int _ironingPrice = 0;
+  int _dryWashPrice = 0;
+  int _steamIroningPrice = 0;
+  List<Map<String, dynamic>> _nonKiloanItems = [];
+  Map<String, int> _nonKiloanSelectedItems = {}; // item id -> quantity
 
   @override
   void initState() {
@@ -51,12 +58,18 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
       final doc = await _firestore.collection('users').doc(_userId).get();
       if (doc.exists && doc.data() != null) {
         final pricing = doc.data()!['pricing'] ?? {};
+        final nonKiloanList = pricing['nonKiloItems'] ?? [];
+
         setState(() {
           _pricePerKilo = pricing['pricePerKilo'] ?? 0;
           _expressSurcharge = pricing['expressSurcharge'] ?? 0;
+          _ironingPrice = pricing['ironing'] ?? 0;
+          _dryWashPrice = pricing['dryWash'] ?? 0;
+          _steamIroningPrice = pricing['steamIroning'] ?? 0;
+          _nonKiloanItems = List<Map<String, dynamic>>.from(nonKiloanList);
         });
         print(
-            '[LOAD] Pricing data: ${_pricePerKilo}/kg, Express: +${_expressSurcharge}');
+            '[LOAD] Pricing: Wash=${_pricePerKilo}, Ironing=${_ironingPrice}, DryWash=${_dryWashPrice}, SteamIroning=${_steamIroningPrice}');
       }
     } catch (e) {
       print('[ERROR] Load pricing: $e');
@@ -128,6 +141,27 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     });
 
     print('[CLEAR] Customer selection cleared');
+  }
+
+  void _addNonKiloanItem(String itemId) {
+    setState(() {
+      if (_nonKiloanSelectedItems.containsKey(itemId)) {
+        _nonKiloanSelectedItems[itemId] = _nonKiloanSelectedItems[itemId]! + 1;
+      } else {
+        _nonKiloanSelectedItems[itemId] = 1;
+      }
+    });
+  }
+
+  void _removeNonKiloanItem(String itemId) {
+    setState(() {
+      if (_nonKiloanSelectedItems.containsKey(itemId)) {
+        _nonKiloanSelectedItems[itemId] = _nonKiloanSelectedItems[itemId]! - 1;
+        if (_nonKiloanSelectedItems[itemId]! <= 0) {
+          _nonKiloanSelectedItems.remove(itemId);
+        }
+      }
+    });
   }
 
   Future<void> _saveNewCustomer() async {
@@ -221,10 +255,6 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
               _buildHeader(),
               const SizedBox(height: 24),
 
-              // ===== Step Indicator =====
-              _buildStepIndicator(),
-              const SizedBox(height: 24),
-
               // ===== Step Content =====
               if (_currentStep == 1) _buildStep1(),
               if (_currentStep == 2) _buildStep2(),
@@ -263,13 +293,11 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Add Order', style: mBold),
-                const SizedBox(height: 4),
-                Text(
-                  'Create new order for customer',
-                  style: sRegular.copyWith(
-                    color: const Color(0xFF6B7280),
-                  ),
+                Text('Tambah Order', style: mBold),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 20,
+                  child: _buildStepIndicator(),
                 ),
               ],
             ),
@@ -281,37 +309,42 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
   // ===== Step Indicator =====
   Widget _buildStepIndicator() {
-    return Row(
-      children: [
-        // Step 1
-        _buildStepDot(1),
-        Expanded(
-          child: Container(
-            height: 2,
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            color: _currentStep > 1 ? blue500 : const Color(0xFFE5E7EB),
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 250),
+      child: Row(
+        children: [
+          // Step 1
+          _buildStepDot(1),
+          Flexible(
+            flex: 1,
+            child: Container(
+              height: 1.5,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              color: _currentStep > 1 ? blue500 : const Color(0xFFE5E7EB),
+            ),
           ),
-        ),
-        // Step 2
-        _buildStepDot(2),
-        Expanded(
-          child: Container(
-            height: 2,
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            color: _currentStep > 2 ? blue500 : const Color(0xFFE5E7EB),
+          // Step 2
+          _buildStepDot(2),
+          Flexible(
+            flex: 1,
+            child: Container(
+              height: 1.5,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              color: _currentStep > 2 ? blue500 : const Color(0xFFE5E7EB),
+            ),
           ),
-        ),
-        // Step 3
-        _buildStepDot(3),
-      ],
+          // Step 3
+          _buildStepDot(3),
+        ],
+      ),
     );
   }
 
   Widget _buildStepDot(int step) {
     final isActive = _currentStep >= step;
     return Container(
-      width: 36,
-      height: 36,
+      width: 24,
+      height: 24,
       decoration: BoxDecoration(
         color: isActive ? blue500 : const Color(0xFFE5E7EB),
         shape: BoxShape.circle,
@@ -322,7 +355,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           style: TextStyle(
             color: isActive ? Colors.white : Colors.grey[500],
             fontWeight: FontWeight.w800,
-            fontSize: 14,
+            fontSize: 10,
           ),
         ),
       ),
@@ -334,191 +367,214 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Customer Information', style: mBold),
+        Text('Informasi Pelanggan', style: mBold),
         const SizedBox(height: 4),
         Text(
-          'Enter customer details to create order',
+          'Masukkan detail pelanggan untuk membuat pesanan',
           style: sRegular.copyWith(color: const Color(0xFF6B7280)),
         ),
         const SizedBox(height: 20),
 
-        // ===== Name Field with Autocomplete =====
-        Text('Customer Name', style: smBold),
-        const SizedBox(height: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _nameC,
-              textCapitalization: TextCapitalization.words,
-              style: smBold.copyWith(color: textPrimary),
-              decoration: InputDecoration(
-                hintText: 'e.g. Budi Santoso',
-                hintStyle: sRegular.copyWith(color: textMuted),
-                filled: true,
-                fillColor: bgInput,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: borderLight),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: borderFocus, width: 1.2),
-                ),
-              ),
+        // ===== Form Container =====
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.blue[200]!,
+              width: 1,
             ),
-
-            // Suggestions Dropdown - Only show jika belum ada customer dipilih
-            if (_showSuggestions &&
-                _searchResults.isNotEmpty &&
-                _selectedCustomerId == null)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: borderLight),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    )
-                  ],
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _searchResults.length,
-                  separatorBuilder: (context, index) => Divider(
-                    height: 1,
-                    color: borderLight,
-                  ),
-                  itemBuilder: (context, index) {
-                    final customer = _searchResults[index];
-                    return ListTile(
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ===== Name Field with Autocomplete =====
+              Text('Nama Pelanggan', style: smBold),
+              const SizedBox(height: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _nameC,
+                    textCapitalization: TextCapitalization.words,
+                    style: smBold.copyWith(color: textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Nama Pelanggan Anda',
+                      hintStyle: sRegular.copyWith(color: textMuted),
+                      filled: true,
+                      fillColor: bgInput,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 8,
+                        vertical: 14,
                       ),
-                      title: Text(
-                        customer['name'] ?? '',
-                        style: smBold.copyWith(color: textPrimary),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: borderLight),
                       ),
-                      subtitle: Text(
-                        customer['phone'] ?? '',
-                        style: xsRegular.copyWith(color: textMuted),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: borderFocus, width: 1.2),
                       ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        iconSize: 20,
-                        color: Colors.red[400],
-                        onPressed: () => _clearCustomerSelection(),
+                    ),
+                  ),
+
+                  // Suggestions Dropdown - Only show jika belum ada customer dipilih
+                  if (_showSuggestions &&
+                      _searchResults.isNotEmpty &&
+                      _selectedCustomerId == null)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: borderLight),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
                       ),
-                      onTap: () => _selectCustomer(customer),
-                    );
-                  },
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _searchResults.length,
+                        separatorBuilder: (context, index) => Divider(
+                          height: 1,
+                          color: borderLight,
+                        ),
+                        itemBuilder: (context, index) {
+                          final customer = _searchResults[index];
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            title: Text(
+                              customer['name'] ?? '',
+                              style: smBold.copyWith(color: textPrimary),
+                            ),
+                            subtitle: Text(
+                              customer['phone'] ?? '',
+                              style: xsRegular.copyWith(color: textMuted),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close_rounded),
+                              iconSize: 20,
+                              color: Colors.red[400],
+                              onPressed: () => _clearCustomerSelection(),
+                            ),
+                            onTap: () => _selectCustomer(customer),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              // ===== Gender Field =====
+              Text('Jenis Kelamin', style: smBold),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () =>
+                          setState(() => _selectedGender = 'Laki-laki'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _selectedGender == 'Laki-laki'
+                              ? blue500
+                              : bgInput,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _selectedGender == 'Laki-laki'
+                                ? blue500
+                                : borderLight,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Laki-laki',
+                            style: smBold.copyWith(
+                              color: _selectedGender == 'Laki-laki'
+                                  ? Colors.white
+                                  : textPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () =>
+                          setState(() => _selectedGender = 'Perempuan'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _selectedGender == 'Perempuan'
+                              ? blue500
+                              : bgInput,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _selectedGender == 'Perempuan'
+                                ? blue500
+                                : borderLight,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Perempuan',
+                            style: smBold.copyWith(
+                              color: _selectedGender == 'Perempuan'
+                                  ? Colors.white
+                                  : textPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              // ===== Phone Field =====
+              Text('Nomor WhatsApp', style: smBold),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _phoneC,
+                keyboardType: TextInputType.phone,
+                style: smBold.copyWith(color: textPrimary),
+                decoration: InputDecoration(
+                  hintText: '081xxxx',
+                  hintStyle: sRegular.copyWith(color: textMuted),
+                  filled: true,
+                  fillColor: bgInput,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  prefixText: '+62 ',
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: borderFocus, width: 1.2),
+                  ),
                 ),
               ),
-          ],
-        ),
-
-        const SizedBox(height: 18),
-
-        // ===== Gender Field =====
-        Text('Jenis Kelamin', style: smBold),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedGender = 'Laki-laki'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedGender == 'Laki-laki' ? blue500 : bgInput,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _selectedGender == 'Laki-laki'
-                          ? blue500
-                          : borderLight,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Laki-laki',
-                      style: smBold.copyWith(
-                        color: _selectedGender == 'Laki-laki'
-                            ? Colors.white
-                            : textPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedGender = 'Perempuan'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedGender == 'Perempuan' ? blue500 : bgInput,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _selectedGender == 'Perempuan'
-                          ? blue500
-                          : borderLight,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Perempuan',
-                      style: smBold.copyWith(
-                        color: _selectedGender == 'Perempuan'
-                            ? Colors.white
-                            : textPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 18),
-
-        // ===== Phone Field =====
-        Text('Phone Number', style: smBold),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _phoneC,
-          keyboardType: TextInputType.phone,
-          style: smBold.copyWith(color: textPrimary),
-          decoration: InputDecoration(
-            hintText: 'e.g. 082123456789',
-            hintStyle: sRegular.copyWith(color: textMuted),
-            filled: true,
-            fillColor: bgInput,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-            prefixText: '+62 ',
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: borderLight),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: borderFocus, width: 1.2),
-            ),
+            ],
           ),
         ),
       ],
@@ -543,7 +599,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   ),
                 ),
                 child: Text(
-                  'Back',
+                  'Kembali',
                   style: smBold.copyWith(color: textPrimary),
                 ),
               ),
@@ -567,7 +623,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                 shadowColor: blue500.withOpacity(0.3),
               ),
               child: Text(
-                'Next',
+                'Lanjut',
                 style: smBold.copyWith(color: Colors.white),
               ),
             ),
@@ -579,11 +635,32 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
   // ====== STEP 2: SERVICE ORDER ======
   Widget _buildStep2() {
+    // Get selected service price
+    int selectedServicePrice = _pricePerKilo; // default wash complete
+    if (_selectedServiceType == 'ironing') {
+      selectedServicePrice = _ironingPrice;
+    } else if (_selectedServiceType == 'dryWash') {
+      selectedServicePrice = _dryWashPrice;
+    } else if (_selectedServiceType == 'steamIroning') {
+      selectedServicePrice = _steamIroningPrice;
+    }
+
     // Calculate price based on selections
     int basePrice = 0;
     if (_selectedCategory == 'Kiloan' && _weightC.text.isNotEmpty) {
       final weight = double.tryParse(_weightC.text) ?? 0;
-      basePrice = (_pricePerKilo * weight).toInt();
+      basePrice = (selectedServicePrice * weight).toInt();
+    } else if (_selectedCategory == 'Satuan') {
+      // Calculate total price for selected satuan items
+      _nonKiloanSelectedItems.forEach((itemId, qty) {
+        final item = _nonKiloanItems.firstWhere(
+            (item) => item['id']?.toString() == itemId,
+            orElse: () => {});
+        if (item.isNotEmpty) {
+          final itemPrice = item['price'] as int? ?? 0;
+          basePrice += itemPrice * qty;
+        }
+      });
     }
 
     int expressPrice = (_selectedSpeed == 'Express') ? _expressSurcharge : 0;
@@ -592,240 +669,401 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Select Order Type', style: mBold),
+        Text('Pilih Jenis Pesanan', style: mBold),
         const SizedBox(height: 20),
 
         // ===== Category Selection =====
-        Text('Category', style: smBold),
+        Text('Kategori', style: smBold),
         const SizedBox(height: 8),
         Row(
           children: [
             _buildCategoryButton('Kiloan'),
             const SizedBox(width: 12),
-            _buildCategoryButton('Non-kiloan'),
+            _buildCategoryButton('Satuan'),
             const SizedBox(width: 12),
-            _buildCategoryButton('Mixed'),
+            _buildCategoryButton('Campuran'),
           ],
         ),
-
         const SizedBox(height: 20),
 
-        // ===== Speed Selection =====
-        Text('Service Speed', style: smBold),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedSpeed = 'Regular'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedSpeed == 'Regular' ? blue500 : bgInput,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color:
-                          _selectedSpeed == 'Regular' ? blue500 : borderLight,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Regular',
-                      style: smBold.copyWith(
-                        color: _selectedSpeed == 'Regular'
-                            ? Colors.white
-                            : textPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+        // ===== Form Container Step 2 =====
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.blue[200]!,
+              width: 1,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedSpeed = 'Express'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedSpeed == 'Express' ? blue500 : bgInput,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color:
-                          _selectedSpeed == 'Express' ? blue500 : borderLight,
-                    ),
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ===== Service Type Selection (Kiloan only) =====
+              if (_selectedCategory == 'Kiloan') ...[
+                Text('Jenis Layanan', style: smBold),
+                const SizedBox(height: 8),
+                Column(
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          'Express',
-                          style: smBold.copyWith(
-                            color: _selectedSpeed == 'Express'
-                                ? Colors.white
-                                : textPrimary,
+                        Expanded(
+                          child: _buildServiceButton(
+                            'washComplete',
+                            'Komplit',
+                            'Cuci + Setrika',
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '+Rp ${_formatNumber(_expressSurcharge)}',
-                          style: xsRegular.copyWith(
-                            color: _selectedSpeed == 'Express'
-                                ? Colors.white70
-                                : textMuted,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildServiceButton(
+                            'ironing',
+                            'Setrika',
+                            'Hanya setrika',
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildServiceButton(
+                            'dryWash',
+                            'Kering',
+                            'Hanya cuci',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildServiceButton(
+                            'steamIroning',
+                            'Uap',
+                            'Setrika uap',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // ===== Speed Selection =====
+              Text('Kecepatan Layanan', style: smBold),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedSpeed = 'Regular'),
+                      child: Container(
+                        height: 60,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _selectedSpeed == 'Regular'
+                              ? blue500.withOpacity(0.1)
+                              : bgInput,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _selectedSpeed == 'Regular'
+                                ? blue500
+                                : borderLight,
+                            width: _selectedSpeed == 'Regular' ? 2 : 1.5,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Regular',
+                            style: smBold.copyWith(
+                              color: _selectedSpeed == 'Regular'
+                                  ? blue500
+                                  : textPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedSpeed = 'Express'),
+                      child: Container(
+                        height: 65,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _selectedSpeed == 'Express'
+                              ? blue500.withOpacity(0.1)
+                              : bgInput,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _selectedSpeed == 'Express'
+                                ? blue500
+                                : borderLight,
+                            width: _selectedSpeed == 'Express' ? 2 : 1.5,
+                          ),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Express',
+                                style: smBold.copyWith(
+                                  color: _selectedSpeed == 'Express'
+                                      ? blue500
+                                      : textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '+Rp ${_formatNumber(_expressSurcharge)}',
+                                style: xsRegular.copyWith(
+                                  color: _selectedSpeed == 'Express'
+                                      ? Colors.grey[400]
+                                      : textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // ===== Input based on Category =====
+              if (_selectedCategory == 'Kiloan') ...[
+                Text('Berat (kg)', style: smBold),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _weightC,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  style: smBold.copyWith(color: textPrimary),
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: '2',
+                    hintStyle: sRegular.copyWith(color: textMuted),
+                    filled: true,
+                    fillColor: bgInput,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    suffixText: 'kg',
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: borderLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: borderFocus, width: 1.2),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ],
+                const SizedBox(
+                  height: 8,
+                ),
+                Text('Harga: Rp ${_formatNumber(basePrice)} per kg',
+                    style: xsRegular.copyWith(color: textMuted)),
+              ] else if (_selectedCategory == 'Satuan') ...[
+                Text('Pilih Item', style: smBold),
+                const SizedBox(height: 8),
+                if (_nonKiloanItems.isEmpty)
+                  Text('Tidak ada item tersedia',
+                      style: sRegular.copyWith(color: textMuted))
+                else
+                  Column(
+                    children: _nonKiloanItems.map((item) {
+                      final itemId = item['id']?.toString() ?? '';
+                      final itemName = item['name'] ?? 'Unnamed';
+                      final itemPrice = item['price'] as int? ?? 0;
+                      final qty = _nonKiloanSelectedItems[itemId] ?? 0;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: qty > 0 ? Colors.blue[50] : bgInput,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: qty > 0 ? Colors.blue[300]! : borderLight,
+                            width: qty > 0 ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(itemName,
+                                      style:
+                                          smBold.copyWith(color: textPrimary)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Rp ${_formatNumber(itemPrice)}',
+                                    style: sRegular.copyWith(color: textMuted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: qty > 0
+                                      ? () => _removeNonKiloanItem(itemId)
+                                      : null,
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: qty > 0 ? blue500 : bgInput,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: qty > 0 ? blue500 : borderLight,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.remove,
+                                        size: 16,
+                                        color:
+                                            qty > 0 ? Colors.white : textMuted,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                SizedBox(
+                                  width: 36,
+                                  child: Center(
+                                    child: Text(
+                                      qty.toString(),
+                                      style:
+                                          smBold.copyWith(color: textPrimary),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: () => _addNonKiloanItem(itemId),
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: blue500,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: blue500),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.add,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+              ] else ...[
+                // Campuran
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Weight (kg)', style: smBold),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _weightC,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            style: smBold.copyWith(color: textPrimary),
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              hintText: '2.5',
+                              hintStyle: sRegular.copyWith(color: textMuted),
+                              filled: true,
+                              fillColor: bgInput,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: borderLight),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    BorderSide(color: borderFocus, width: 1.2),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Item Qty', style: smBold),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _qtyC,
+                            keyboardType: TextInputType.number,
+                            style: smBold.copyWith(color: textPrimary),
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              hintText: '3',
+                              hintStyle: sRegular.copyWith(color: textMuted),
+                              filled: true,
+                              fillColor: bgInput,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: borderLight),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    BorderSide(color: borderFocus, width: 1.2),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
         ),
 
         const SizedBox(height: 20),
 
-        // ===== Input based on Category =====
-        if (_selectedCategory == 'Kiloan') ...[
-          Text('Weight (kg)', style: smBold),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _weightC,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: smBold.copyWith(color: textPrimary),
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: 'e.g. 2.5',
-              hintStyle: sRegular.copyWith(color: textMuted),
-              filled: true,
-              fillColor: bgInput,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              suffixText: 'kg',
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: borderLight),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: borderFocus, width: 1.2),
-              ),
-            ),
-          ),
-        ] else if (_selectedCategory == 'Non-kiloan') ...[
-          Text('Item', style: smBold),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _qtyC,
-            keyboardType: TextInputType.number,
-            style: smBold.copyWith(color: textPrimary),
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: 'e.g. 3',
-              hintStyle: sRegular.copyWith(color: textMuted),
-              filled: true,
-              fillColor: bgInput,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              suffixText: 'items',
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: borderLight),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: borderFocus, width: 1.2),
-              ),
-            ),
-          ),
-        ] else ...[
-          // Mixed
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Weight (kg)', style: smBold),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _weightC,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      style: smBold.copyWith(color: textPrimary),
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        hintText: '2.5',
-                        hintStyle: sRegular.copyWith(color: textMuted),
-                        filled: true,
-                        fillColor: bgInput,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: borderLight),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              BorderSide(color: borderFocus, width: 1.2),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Item Qty', style: smBold),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _qtyC,
-                      keyboardType: TextInputType.number,
-                      style: smBold.copyWith(color: textPrimary),
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        hintText: '3',
-                        hintStyle: sRegular.copyWith(color: textMuted),
-                        filled: true,
-                        fillColor: bgInput,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: borderLight),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              BorderSide(color: borderFocus, width: 1.2),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-
-        const SizedBox(height: 20),
-
         // ===== Special Notes =====
-        Text('Special Notes (Optional)', style: smBold),
+        Text('Catatan Khusus (Opsional)', style: smBold),
         const SizedBox(height: 8),
         TextField(
           controller: _notesC,
@@ -864,13 +1102,13 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Price Summary', style: smBold),
+              Text('Ringkasan Harga', style: smBold),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Base Price:',
+                    'Harga Dasar:',
                     style: sRegular.copyWith(color: textSecondary),
                   ),
                   Text(
@@ -885,7 +1123,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Express Surcharge:',
+                      'Biaya Express:',
                       style: sRegular.copyWith(color: textSecondary),
                     ),
                     Text(
@@ -918,6 +1156,50 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     );
   }
 
+  // ===== Helper: Service Type Button =====
+  Widget _buildServiceButton(
+    String serviceId,
+    String title,
+    String subtitle,
+  ) {
+    final isSelected = _selectedServiceType == serviceId;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedServiceType = serviceId),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? blue500.withOpacity(0.1) : bgInput,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? blue500 : borderLight,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              title,
+              style: smBold.copyWith(
+                color: isSelected ? blue500 : textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: xsRegular.copyWith(
+                color: isSelected ? Colors.grey[400] : textMuted,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ===== Helper: Category Button with Image =====
   Widget _buildCategoryButton(String category) {
     final isSelected = _selectedCategory == category;
@@ -925,8 +1207,8 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     // Map category ke image path
     final imageMap = {
       'Kiloan': 'assets/images/Balance_Scale.png',
-      'Non-kiloan': 'assets/images/shirt.png',
-      'Mixed': 'assets/images/package.png',
+      'Satuan': 'assets/images/shirt.png',
+      'Campuran': 'assets/images/package.png',
     };
 
     return Expanded(

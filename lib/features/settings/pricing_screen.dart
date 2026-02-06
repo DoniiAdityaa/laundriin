@@ -17,6 +17,9 @@ class PricingScreen extends StatefulWidget {
 class _PricingScreenState extends State<PricingScreen> {
   final _pricePerKiloC = TextEditingController();
   final _expressSurchargeC = TextEditingController();
+  final _ironingC = TextEditingController();
+  final _dryWashC = TextEditingController();
+  final _steamIroningC = TextEditingController();
   final _blankletC = TextEditingController();
   final _bedsheetC = TextEditingController();
   final _bedcoverC = TextEditingController();
@@ -73,6 +76,10 @@ class _PricingScreenState extends State<PricingScreen> {
               _formatNumberWithComma(data['pricePerKilo'] ?? 0);
           _expressSurchargeC.text =
               _formatNumberWithComma(data['expressSurcharge'] ?? 0);
+          _ironingC.text = _formatNumberWithComma(data['ironing'] ?? 0);
+          _dryWashC.text = _formatNumberWithComma(data['dryWash'] ?? 0);
+          _steamIroningC.text =
+              _formatNumberWithComma(data['steamIroning'] ?? 0);
           _blankletC.text = _formatNumberWithComma(data['blanket'] ?? 0);
           _bedsheetC.text = _formatNumberWithComma(data['bedsheet'] ?? 0);
           _bedcoverC.text = _formatNumberWithComma(data['bedcover'] ?? 0);
@@ -103,6 +110,9 @@ class _PricingScreenState extends State<PricingScreen> {
           'pricing': {
             'pricePerKilo': _parseRupiahToInt(_pricePerKiloC.text),
             'expressSurcharge': _parseRupiahToInt(_expressSurchargeC.text),
+            'ironing': _parseRupiahToInt(_ironingC.text),
+            'dryWash': _parseRupiahToInt(_dryWashC.text),
+            'steamIroning': _parseRupiahToInt(_steamIroningC.text),
             'blanket': _parseRupiahToInt(_blankletC.text),
             'bedsheet': _parseRupiahToInt(_bedsheetC.text),
             'bedcover': _parseRupiahToInt(_bedcoverC.text),
@@ -138,6 +148,9 @@ class _PricingScreenState extends State<PricingScreen> {
   void dispose() {
     _pricePerKiloC.dispose();
     _expressSurchargeC.dispose();
+    _ironingC.dispose();
+    _dryWashC.dispose();
+    _steamIroningC.dispose();
     _blankletC.dispose();
     _bedsheetC.dispose();
     _bedcoverC.dispose();
@@ -187,6 +200,45 @@ class _PricingScreenState extends State<PricingScreen> {
                 controller: _expressSurchargeC,
                 currentText:
                     "Additional: Rp ${_formatNumberWithComma(_parseRupiahToInt(_expressSurchargeC.text))}",
+              ),
+              const SizedBox(height: 24),
+              // ===== Ironing =====
+              _buildPricingCard(
+                leadingIcon: Icons.local_laundry_service_rounded,
+                iconColor: const Color(0xFF0891B2),
+                bgColor: const Color(0xFFCFFAFE),
+                title: "Ironing Service",
+                subtitle: "Hanya setrika",
+                label: "Price per Kilogram (Rp)",
+                controller: _ironingC,
+                currentText:
+                    "Current: Rp ${_formatNumberWithComma(_parseRupiahToInt(_ironingC.text))} per kg",
+              ),
+              const SizedBox(height: 24),
+              // ===== Dry Wash =====
+              _buildPricingCard(
+                leadingIcon: Icons.opacity_rounded,
+                iconColor: const Color(0xFF06B6D4),
+                bgColor: const Color(0xFFECFDF5),
+                title: "Dry Wash Service",
+                subtitle: "Hanya cuci (semi-kering)",
+                label: "Price per Kilogram (Rp)",
+                controller: _dryWashC,
+                currentText:
+                    "Current: Rp ${_formatNumberWithComma(_parseRupiahToInt(_dryWashC.text))} per kg",
+              ),
+              const SizedBox(height: 24),
+              // ===== Steam Ironing =====
+              _buildPricingCard(
+                leadingIcon: Icons.cloud_rounded,
+                iconColor: const Color(0xFFEC4899),
+                bgColor: const Color(0xFFFCE7F3),
+                title: "Steam Ironing Service",
+                subtitle: "Setrika dengan uap",
+                label: "Price per Kilogram (Rp)",
+                controller: _steamIroningC,
+                currentText:
+                    "Current: Rp ${_formatNumberWithComma(_parseRupiahToInt(_steamIroningC.text))} per kg",
               ),
               const SizedBox(height: 24),
               _buildSatuanCard(

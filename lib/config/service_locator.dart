@@ -11,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/api/api_service.dart';
 import 'constant.dart';
-import 'env/env.dart';
 
 /// Global [GetIt.instance].
 final GetIt serviceLocator = GetIt.instance;
