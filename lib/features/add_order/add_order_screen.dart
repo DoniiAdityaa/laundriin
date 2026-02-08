@@ -269,6 +269,126 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
       // Move to step 3
       setState(() => _currentStep = 3);
+    } else if (_currentStep == 3) {
+      // Create order and save to Firestore
+      _createOrder();
+    }
+  }
+
+  Future<void> _createOrder() async {
+    try {
+      print('═══════════════════════════════════════════════════════════');
+      print('[CREATE ORDER] Starting order creation...');
+      print('═══════════════════════════════════════════════════════════');
+
+      // Show loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Membuat pesanan...'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+
+      // Generate Order ID
+      final orderId = 'ORD-${DateTime.now().millisecondsSinceEpoch}';
+      print('[ORDER ID] $orderId');
+
+      // Prepare order data
+      Map<String, dynamic> itemsData = {};
+      _nonKiloanSelectedItems.forEach((itemId, qty) {
+        final item = _nonKiloanItems.firstWhere(
+          (item) => (item['id']?.toString() ?? '') == itemId,
+          orElse: () => {'id': itemId, 'name': 'Unknown', 'price': 0},
+        );
+        itemsData[itemId] = {
+          'name': item['name'],
+          'qty': qty,
+          'price': item['price'],
+        };
+      });
+
+      if (itemsData.isNotEmpty) {
+        print('[ITEMS DATA]');
+        itemsData.forEach((key, value) {
+          print(
+              '  - $key: ${value['name']} x${value['qty']} @ Rp ${value['price']}');
+        });
+      } else {
+        print('[ITEMS DATA] Kosong (kategori kiloan atau tidak ada items)');
+      }
+
+      final orderData = {
+        'orderId': orderId,
+        'customerId': _selectedCustomerId,
+        'category': _selectedCategory.toLowerCase(),
+        'serviceType': _selectedServiceType,
+        'speed': _selectedSpeed.toLowerCase(),
+        'weight': _selectedCategory == 'Kiloan'
+            ? int.tryParse(_weightC.text) ?? 0
+            : null,
+        'items': itemsData.isEmpty ? null : itemsData,
+        'totalPrice': _calculateTotalPrice(),
+        'notes': _notesC.text.trim().isEmpty ? null : _notesC.text.trim(),
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      // Print order data for verification
+      print('[ORDER DATA]');
+      print('  - Customer ID: ${orderData['customerId']}');
+      print('  - Category: ${orderData['category']}');
+      print('  - Service Type: ${orderData['serviceType']}');
+      print('  - Speed: ${orderData['speed']}');
+      print('  - Weight: ${orderData['weight']} kg');
+      print('  - Total Price: Rp ${orderData['totalPrice']}');
+      print('  - Notes: ${orderData['notes'] ?? '(tidak ada)'}');
+      print('  - Status: ${orderData['status']}');
+
+      // Save to Firestore
+      print('[FIREBASE] Saving to path: /shops/$_userId/orders/$orderId');
+      await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('orders')
+          .doc(orderId)
+          .set(orderData);
+
+      print('[SUCCESS] ✅ Pesanan berhasil disimpan ke database!');
+      print('═══════════════════════════════════════════════════════════');
+
+      // Success!
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Pesanan berhasil dibuat!\nID: $orderId'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // Delay untuk show snackbar sebelum navigate
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // Kembali ke home
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print('[ERROR] ❌ Gagal membuat pesanan!');
+      print('[ERROR] Exception: $e');
+      print('[ERROR] StackTrace: ${StackTrace.current}');
+      print('═══════════════════════════════════════════════════════════');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Gagal membuat pesanan: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -691,7 +811,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
       // Calculate total price for selected satuan items
       _nonKiloanSelectedItems.forEach((itemId, qty) {
         final item = _nonKiloanItems.firstWhere(
-            (item) => item['id']?.toString() == itemId,
+            (item) => (item['id']?.toString() ?? '') == itemId,
             orElse: () => {});
         if (item.isNotEmpty) {
           final itemPrice = item['price'] as int? ?? 0;
@@ -708,7 +828,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
       // Satuan items part
       _nonKiloanSelectedItems.forEach((itemId, qty) {
         final item = _nonKiloanItems.firstWhere(
-            (item) => item['id']?.toString() == itemId,
+            (item) => (item['id']?.toString() ?? '') == itemId,
             orElse: () => {});
         if (item.isNotEmpty) {
           final itemPrice = item['price'] as int? ?? 0;
@@ -802,6 +922,97 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
+
+                // ===== Speed Selection =====
+                Text('Kecepatan Layanan', style: smBold),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedSpeed = 'Regular'),
+                        child: Container(
+                          height: 60,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedSpeed == 'Regular'
+                                ? blue500.withOpacity(0.1)
+                                : bgInput,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _selectedSpeed == 'Regular'
+                                  ? blue500
+                                  : borderLight,
+                              width: _selectedSpeed == 'Regular' ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Regular',
+                                  style: smBold.copyWith(
+                                    color: _selectedSpeed == 'Regular'
+                                        ? blue500
+                                        : textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedSpeed = 'Express'),
+                        child: Container(
+                          height: 65,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedSpeed == 'Express'
+                                ? blue500.withOpacity(0.1)
+                                : bgInput,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _selectedSpeed == 'Express'
+                                  ? blue500
+                                  : borderLight,
+                              width: _selectedSpeed == 'Express' ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Express',
+                                  style: smBold.copyWith(
+                                    color: _selectedSpeed == 'Express'
+                                        ? blue500
+                                        : textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '+Rp ${_formatNumber(_expressSurcharge)}',
+                                  style: xsRegular.copyWith(
+                                    color: _selectedSpeed == 'Express'
+                                        ? Colors.grey[400]
+                                        : textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
               ],
 
               // ===== Input based on Category =====
@@ -837,9 +1048,99 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                 const SizedBox(
                   height: 8,
                 ),
-                Text('Harga: Rp ${_formatNumber(basePrice)} per kg',
+                Text('Harga: Rp ${_formatNumber(selectedServicePrice)} per kg',
                     style: xsRegular.copyWith(color: textMuted)),
               ] else if (_selectedCategory == 'Satuan') ...[
+                // ===== Speed Selection =====
+                Text('Kecepatan Layanan', style: smBold),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedSpeed = 'Regular'),
+                        child: Container(
+                          height: 60,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedSpeed == 'Regular'
+                                ? blue500.withOpacity(0.1)
+                                : bgInput,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _selectedSpeed == 'Regular'
+                                  ? blue500
+                                  : borderLight,
+                              width: _selectedSpeed == 'Regular' ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Regular',
+                                  style: smBold.copyWith(
+                                    color: _selectedSpeed == 'Regular'
+                                        ? blue500
+                                        : textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedSpeed = 'Express'),
+                        child: Container(
+                          height: 65,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedSpeed == 'Express'
+                                ? blue500.withOpacity(0.1)
+                                : bgInput,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _selectedSpeed == 'Express'
+                                  ? blue500
+                                  : borderLight,
+                              width: _selectedSpeed == 'Express' ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Express',
+                                  style: smBold.copyWith(
+                                    color: _selectedSpeed == 'Express'
+                                        ? blue500
+                                        : textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '+Rp ${_formatNumber(_expressSurcharge)}',
+                                  style: xsRegular.copyWith(
+                                    color: _selectedSpeed == 'Express'
+                                        ? Colors.grey[400]
+                                        : textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
                 Text('Pilih Item', style: smBold),
                 const SizedBox(height: 8),
                 if (_nonKiloanItems.isEmpty)
@@ -1384,24 +1685,21 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
   // ===== Step 3: Order Confirmation =====
   Widget _buildStep3() {
-    String categoryLabel = _selectedCategory == 'kiloan'
+    String categoryLabel = _selectedCategory == 'Kiloan'
         ? 'Kiloan'
-        : _selectedCategory == 'satuan'
+        : _selectedCategory == 'Satuan'
             ? 'Satuan'
             : 'Campuran';
 
-    String serviceLabel = _selectedServiceType == 'komplit'
-        ? 'Komplit'
-        : _selectedServiceType == 'setrika'
-            ? 'Setrika'
-            : _selectedServiceType == 'kering'
-                ? 'Kering'
-                : 'Uap';
-
-    String speedLabel = _selectedSpeed == 'express' ? 'Express' : 'Regular';
-
-    // Calculate item quantity if satuan/campuran
-    int totalItems = _nonKiloanSelectedItems.length;
+    // Determine service price based on selected service type
+    int servicePrice = _pricePerKilo; // default wash complete
+    if (_selectedServiceType == 'ironing') {
+      servicePrice = _ironingPrice;
+    } else if (_selectedServiceType == 'dryWash') {
+      servicePrice = _dryWashPrice;
+    } else if (_selectedServiceType == 'steamIroning') {
+      servicePrice = _steamIroningPrice;
+    }
 
     return SingleChildScrollView(
       child: Column(
@@ -1469,7 +1767,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           ),
           const SizedBox(height: 20),
 
-          // ===== SECTION 2: Order Details =====
+          // ===== SECTION 2: Order Details + Price Breakdown (MERGED) =====
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -1480,19 +1778,22 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with icon
+                // Header
                 Row(
                   children: [
                     Container(
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.blue[200]!.withOpacity(0.1),
+                        color: green500.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
-                        child: Image.asset('assets/images/basket.png',
-                            width: 20, height: 20),
+                        child: Image.asset(
+                          'assets/images/basket.png',
+                          width: 22,
+                          height: 22,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1503,246 +1804,198 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Divider(color: borderLight, height: 1),
-                const SizedBox(height: 16),
-                // Categorical badges
-                Row(
-                  children: [
-                    _buildBadge(categoryLabel, blue500),
-                    const SizedBox(width: 8),
-                    _buildBadge(serviceLabel, Colors.orange[600]!),
-                    const SizedBox(width: 8),
-                    _buildBadge(speedLabel, Colors.green[600]!),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Weight or Items info
-                if (_selectedCategory == 'kiloan')
-                  _buildSummaryRow('Berat', '${_weightC.text} kg')
-                else if (_selectedCategory == 'satuan')
-                  _buildSummaryRow('Total Item', '$totalItems barang')
-                else if (_selectedCategory == 'campuran')
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSummaryRow('Berat Kiloan',
-                          '${_weightC.text.isNotEmpty ? _weightC.text : '0'} kg'),
-                      const SizedBox(height: 12),
-                      _buildSummaryRow('Total Item', '$totalItems barang'),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
 
-          // ===== SECTION 3: Price Breakdown =====
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.blue[200]!, width: 1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with icon
+                // Category Badge with Icon - Single Badge Only
                 Row(
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: blue500.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.payments_rounded,
-                          size: 20,
-                          color: blue500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Rincian Harga',
-                      style: mBold.copyWith(color: textPrimary),
-                    ),
+                    // Category Icon
+
+                    // Category Badge
+                    _buildBadge(categoryLabel, blue400),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Divider(color: borderLight, height: 1),
                 const SizedBox(height: 16),
-                // Price breakdown based on category
-                if (_selectedCategory == 'kiloan')
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildPriceRow(
-                          'Harga per Kg', 'Rp ${_formatNumber(_pricePerKilo)}'),
-                      const SizedBox(height: 8),
-                      _buildPriceRow('Berat: ${_weightC.text} kg',
-                          'Rp ${_formatNumber(_pricePerKilo * int.parse(_weightC.text.isEmpty ? '0' : _weightC.text))}'),
-                      if (_selectedServiceType == 'setrika')
-                        Column(
-                          children: [
-                            const SizedBox(height: 8),
-                            _buildPriceRow('Setrika',
-                                'Rp ${_formatNumber(_ironingPrice)}'),
-                          ],
-                        ),
-                      if (_selectedServiceType == 'kering')
-                        Column(
-                          children: [
-                            const SizedBox(height: 8),
-                            _buildPriceRow('Cuci Kering',
-                                'Rp ${_formatNumber(_dryWashPrice)}'),
-                          ],
-                        ),
-                      if (_selectedServiceType == 'uap')
-                        Column(
-                          children: [
-                            const SizedBox(height: 8),
-                            _buildPriceRow('Uap',
-                                'Rp ${_formatNumber(_steamIroningPrice)}'),
-                          ],
-                        ),
-                      if (_selectedSpeed == 'express')
-                        Column(
-                          children: [
-                            const SizedBox(height: 8),
-                            _buildPriceRow('Tambahan Express',
-                                'Rp ${_formatNumber(_expressSurcharge)}',
-                                isExtra: true),
-                          ],
-                        ),
-                    ],
-                  )
-                else if (_selectedCategory == 'satuan')
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ..._nonKiloanSelectedItems.entries.map((entry) {
-                        final item = _nonKiloanItems.firstWhere(
-                          (item) => item['id'] == entry.key,
-                          orElse: () => {'name': 'Unknown', 'price': 0},
-                        );
-                        int price = item['price'] as int;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _buildPriceRow(
-                            '${item['name']} (x${entry.value})',
-                            'Rp ${_formatNumber(price * entry.value)}',
-                          ),
-                        );
-                      }).toList(),
-                      if (_selectedSpeed == 'express')
-                        Column(
-                          children: [
-                            const SizedBox(height: 8),
-                            _buildPriceRow('Tambahan Express',
-                                'Rp ${_formatNumber(_expressSurcharge)}',
-                                isExtra: true),
-                          ],
-                        ),
-                    ],
-                  )
-                else if (_selectedCategory == 'campuran')
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildPriceRow(
-                        'Kiloan: ${_weightC.text} kg × Rp ${_formatNumber(_pricePerKilo)}',
-                        'Rp ${_formatNumber(_pricePerKilo * int.parse(_weightC.text.isEmpty ? '0' : _weightC.text))}',
-                      ),
-                      const SizedBox(height: 12),
-                      Text('Satuan Items:',
-                          style: sRegular.copyWith(color: textMuted)),
-                      const SizedBox(height: 8),
-                      ..._nonKiloanSelectedItems.entries.map((entry) {
-                        final item = _nonKiloanItems.firstWhere(
-                          (item) => item['id'] == entry.key,
-                          orElse: () => {'name': 'Unknown', 'price': 0},
-                        );
-                        int price = item['price'] as int;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _buildPriceRow(
-                            '${item['name']} (x${entry.value})',
-                            'Rp ${_formatNumber(price * entry.value)}',
-                          ),
-                        );
-                      }).toList(),
-                      if (_selectedSpeed == 'express')
-                        Column(
-                          children: [
-                            const SizedBox(height: 8),
-                            _buildPriceRow('Tambahan Express',
-                                'Rp ${_formatNumber(_expressSurcharge)}',
-                                isExtra: true),
-                          ],
-                        ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
 
-          // ===== Total Price =====
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.blue[200]!.withOpacity(0.08),
-              border: Border.all(color: Colors.blue[200]!, width: 1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // Price Items List - Based on Category
+                if (_selectedCategory == 'Kiloan') ...[
+                  // Kiloan: Show weight-based service
+                  _buildDetailItem(
+                    label: _selectedServiceType == 'washComplete'
+                        ? 'Cuci Komplit'
+                        : _selectedServiceType == 'ironing'
+                            ? 'Setrika'
+                            : _selectedServiceType == 'dryWash'
+                                ? 'Cuci Kering'
+                                : 'Uap',
+                    quantity: _weightC.text,
+                    unit: 'Kg',
+                    unitPrice: 'Rp ${_formatNumber(servicePrice)}/Kg',
+                    totalPrice:
+                        'Rp ${_formatNumber(servicePrice * int.parse(_weightC.text.isEmpty ? '0' : _weightC.text))}',
+                  ),
+                  if (_selectedSpeed == 'Express') ...[
+                    const SizedBox(height: 12),
+                    _buildDetailItem(
+                      label: 'Express',
+                      quantity: '1',
+                      unit: '',
+                      unitPrice: 'Rp ${_formatNumber(_expressSurcharge)}/order',
+                      totalPrice: 'Rp ${_formatNumber(_expressSurcharge)}',
+                      isAddOn: true,
+                    ),
+                  ],
+                ] else if (_selectedCategory == 'Satuan') ...[
+                  // Satuan: Show items list
+                  ..._nonKiloanSelectedItems.entries.map((entry) {
+                    final item = _nonKiloanItems.firstWhere(
+                      (item) => (item['id']?.toString() ?? '') == entry.key,
+                      orElse: () => {'name': 'Unknown', 'price': 0},
+                    );
+                    int price = item['price'] as int;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildDetailItem(
+                        label: item['name'] ?? 'Unknown',
+                        quantity: entry.value.toString(),
+                        unit: 'item',
+                        unitPrice: 'Rp ${_formatNumber(price)}/item',
+                        totalPrice: 'Rp ${_formatNumber(price * entry.value)}',
+                      ),
+                    );
+                  }).toList(),
+                  if (_selectedSpeed == 'Express') ...[
+                    const SizedBox(height: 12),
+                    _buildDetailItem(
+                      label: 'Express',
+                      quantity: '1',
+                      unit: '',
+                      unitPrice: 'Rp ${_formatNumber(_expressSurcharge)}/order',
+                      totalPrice: 'Rp ${_formatNumber(_expressSurcharge)}',
+                      isAddOn: true,
+                    ),
+                  ],
+                ] else if (_selectedCategory == 'Campuran') ...[
+                  // Campuran: Show kiloan + items
+                  _buildDetailItem(
+                    label: (_selectedServiceType == 'washComplete'
+                            ? 'Cuci Komplit'
+                            : _selectedServiceType == 'ironing'
+                                ? 'Setrika'
+                                : _selectedServiceType == 'dryWash'
+                                    ? 'Cuci Kering'
+                                    : 'Uap') +
+                        ' (Kiloan)',
+                    quantity: _weightC.text,
+                    unit: 'Kg',
+                    unitPrice: 'Rp ${_formatNumber(servicePrice)}/Kg',
+                    totalPrice:
+                        'Rp ${_formatNumber(servicePrice * int.parse(_weightC.text.isEmpty ? '0' : _weightC.text))}',
+                  ),
+                  const SizedBox(height: 12),
+                  ..._nonKiloanSelectedItems.entries.map((entry) {
+                    final item = _nonKiloanItems.firstWhere(
+                      (item) => (item['id']?.toString() ?? '') == entry.key,
+                      orElse: () => {'name': 'Unknown', 'price': 0},
+                    );
+                    int price = item['price'] as int;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildDetailItem(
+                        label: item['name'] ?? 'Unknown',
+                        quantity: entry.value.toString(),
+                        unit: 'item',
+                        unitPrice: 'Rp ${_formatNumber(price)}/item',
+                        totalPrice: 'Rp ${_formatNumber(price * entry.value)}',
+                      ),
+                    );
+                  }).toList(),
+                  if (_selectedSpeed == 'Express') ...[
+                    const SizedBox(height: 12),
+                    _buildDetailItem(
+                      label: 'Express',
+                      quantity: '1',
+                      unit: '',
+                      unitPrice: 'Rp ${_formatNumber(_expressSurcharge)}/order',
+                      totalPrice: 'Rp ${_formatNumber(_expressSurcharge)}',
+                      isAddOn: true,
+                    ),
+                  ],
+                ],
+
+                const SizedBox(height: 16),
+                Divider(color: borderLight, height: 2),
+                const SizedBox(height: 16),
+
+                // Total Row - Prominent
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Total Harga',
-                      style: sRegular.copyWith(color: textMuted),
+                      'Total',
+                      style: mBold.copyWith(color: textPrimary, fontSize: 16),
                     ),
-                    const SizedBox(height: 4),
                     Text(
                       'Rp ${_formatNumber(_calculateTotalPrice())}',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: blue500,
-                      ),
+                      style: mBold.copyWith(color: blue500, fontSize: 18),
                     ),
                   ],
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green[200]!),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle_outline,
-                          color: Colors.green[700], size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Siap dibuat',
-                        style: smBold.copyWith(color: Colors.green[700]),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 20),
+
+          // ===== SECTION 3: Notes (Only if not empty) =====
+          if (_notesC.text.trim().isNotEmpty)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.blue[200]!, width: 1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header with icon
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.note_outlined,
+                            color: Colors.orange[600],
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Catatan Khusus',
+                        style: mBold.copyWith(color: textPrimary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Divider(color: borderLight, height: 1),
+                  const SizedBox(height: 16),
+                  // Notes content
+                  Text(
+                    _notesC.text,
+                    style: sRegular.copyWith(color: textPrimary),
+                  ),
+                ],
+              ),
+            ),
+
           const SizedBox(height: 24),
         ],
       ),
@@ -1766,24 +2019,57 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     );
   }
 
-  // Helper: Build price row
-  Widget _buildPriceRow(String label, String price, {bool isExtra = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // Helper: Build detail item for order summary (user-friendly format)
+  Widget _buildDetailItem({
+    required String label,
+    required String quantity,
+    required String unit,
+    required String unitPrice,
+    required String totalPrice,
+    bool isAddOn = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            label,
-            style: sRegular.copyWith(color: textMuted),
-            overflow: TextOverflow.ellipsis,
-          ),
+        // Item name and quantity
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: sRegular.copyWith(
+                  color: textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              unit.isEmpty ? '×${quantity}' : '${quantity} $unit',
+              style: sRegular.copyWith(color: textMuted),
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Text(
-          price,
-          style: smBold.copyWith(
-            color: isExtra ? Colors.orange[700] : textPrimary,
-          ),
+        const SizedBox(height: 4),
+        // Unit price and total price
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                unitPrice,
+                style: xsRegular.copyWith(color: textMuted),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              totalPrice,
+              style: smBold.copyWith(
+                color: isAddOn ? Colors.orange[700] : blue500,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1798,9 +2084,24 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color, width: 1),
       ),
-      child: Text(
-        label,
-        style: smBold.copyWith(color: color),
+      child: Row(
+        children: [
+          Image.asset(
+            width: 15,
+            height: 15,
+            _selectedCategory == 'Kiloan'
+                ? 'assets/images/Balance_Scale.png'
+                : _selectedCategory == 'Satuan'
+                    ? 'assets/images/shirt.png'
+                    : 'assets/images/package.png',
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: smBold.copyWith(color: color),
+          ),
+        ],
       ),
     );
   }
@@ -1809,25 +2110,33 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   int _calculateTotalPrice() {
     int total = 0;
 
-    if (_selectedCategory == 'kiloan') {
+    // Determine service price based on selected service type
+    int servicePrice = _pricePerKilo; // default wash complete
+    if (_selectedServiceType == 'ironing') {
+      servicePrice = _ironingPrice;
+    } else if (_selectedServiceType == 'dryWash') {
+      servicePrice = _dryWashPrice;
+    } else if (_selectedServiceType == 'steamIroning') {
+      servicePrice = _steamIroningPrice;
+    }
+
+    if (_selectedCategory == 'Kiloan') {
       int weight = int.tryParse(_weightC.text) ?? 0;
-      total = _pricePerKilo * weight;
+      // Semua service type (Komplit, Setrika, Kering, Uap) gunakan service price per kg
+      total = servicePrice * weight;
 
-      if (_selectedServiceType == 'setrika') total += _ironingPrice;
-      if (_selectedServiceType == 'kering') total += _dryWashPrice;
-      if (_selectedServiceType == 'uap') total += _steamIroningPrice;
-
-      if (_selectedSpeed == 'express') total += _expressSurcharge;
-    } else if (_selectedCategory == 'satuan') {
+      // Hanya Express yang menambah harga
+      if (_selectedSpeed == 'Express') total += _expressSurcharge;
+    } else if (_selectedCategory == 'Satuan') {
       total = _calculateSatuanPrice();
 
-      if (_selectedSpeed == 'express') total += _expressSurcharge;
-    } else if (_selectedCategory == 'campuran') {
+      if (_selectedSpeed == 'Express') total += _expressSurcharge;
+    } else if (_selectedCategory == 'Campuran') {
       int weight = int.tryParse(_weightC.text) ?? 0;
-      total = _pricePerKilo * weight;
+      total = servicePrice * weight;
       total += _calculateSatuanPrice();
 
-      if (_selectedSpeed == 'express') total += _expressSurcharge;
+      if (_selectedSpeed == 'Express') total += _expressSurcharge;
     }
 
     return total;
@@ -1935,7 +2244,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     int price = 0;
     _nonKiloanSelectedItems.forEach((itemId, qty) {
       final item = _nonKiloanItems.firstWhere(
-          (item) => item['id']?.toString() == itemId,
+          (item) => (item['id']?.toString() ?? '') == itemId,
           orElse: () => {});
       if (item.isNotEmpty) {
         final itemPrice = item['price'] as int? ?? 0;
