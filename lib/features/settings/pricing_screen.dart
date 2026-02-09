@@ -17,6 +17,9 @@ class PricingScreen extends StatefulWidget {
 class _PricingScreenState extends State<PricingScreen> {
   final _pricePerKiloC = TextEditingController();
   final _expressSurchargeC = TextEditingController();
+  final _expressEstimatedHoursC =
+      TextEditingController(); // Estimasi jam express
+  final _regularEstimatedHoursC = TextEditingController();
   final _ironingC = TextEditingController();
   final _dryWashC = TextEditingController();
   final _steamIroningC = TextEditingController();
@@ -76,6 +79,10 @@ class _PricingScreenState extends State<PricingScreen> {
               _formatNumberWithComma(data['pricePerKilo'] ?? 0);
           _expressSurchargeC.text =
               _formatNumberWithComma(data['expressSurcharge'] ?? 0);
+          _expressEstimatedHoursC.text =
+              (data['expressEstimatedHours'] ?? 24).toString();
+          _regularEstimatedHoursC.text =
+              (data['regularEstimatedHours'] ?? 48).toString();
           _ironingC.text = _formatNumberWithComma(data['ironing'] ?? 0);
           _dryWashC.text = _formatNumberWithComma(data['dryWash'] ?? 0);
           _steamIroningC.text =
@@ -110,6 +117,10 @@ class _PricingScreenState extends State<PricingScreen> {
           'pricing': {
             'pricePerKilo': _parseRupiahToInt(_pricePerKiloC.text),
             'expressSurcharge': _parseRupiahToInt(_expressSurchargeC.text),
+            'expressEstimatedHours':
+                int.tryParse(_expressEstimatedHoursC.text) ?? 24,
+            'regularEstimatedHours':
+                int.tryParse(_regularEstimatedHoursC.text) ?? 48,
             'ironing': _parseRupiahToInt(_ironingC.text),
             'dryWash': _parseRupiahToInt(_dryWashC.text),
             'steamIroning': _parseRupiahToInt(_steamIroningC.text),
@@ -148,6 +159,8 @@ class _PricingScreenState extends State<PricingScreen> {
   void dispose() {
     _pricePerKiloC.dispose();
     _expressSurchargeC.dispose();
+    _expressEstimatedHoursC.dispose();
+    _regularEstimatedHoursC.dispose();
     _ironingC.dispose();
     _dryWashC.dispose();
     _steamIroningC.dispose();
@@ -162,7 +175,6 @@ class _PricingScreenState extends State<PricingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final kiloInt = _parseRupiahToInt(_pricePerKiloC.text);
     return Scaffold(
       backgroundColor: white,
       body: SafeArea(
@@ -176,31 +188,11 @@ class _PricingScreenState extends State<PricingScreen> {
                   title: 'Pricing Settings',
                   subtitle: 'Manage kiloan and non-kiloan prices'),
               const SizedBox(height: 24),
-              // ===== Kilogram Pricing =====
-              _buildPricingCard(
-                leadingIcon: Icons.attach_money_rounded,
-                iconColor: const Color(0xFF16A34A),
-                bgColor: const Color(0xFFEFFDF2),
-                title: "Kiloan Service",
-                subtitle: "Weight-based pricing",
-                label: "Price per Kilogram (Rp)",
-                controller: _pricePerKiloC,
-                currentText:
-                    "Current: Rp ${_formatNumberWithComma(kiloInt)} per kg",
-              ),
+              // ===== Regular Service (Price + Estimasi) =====
+              _buildRegularServiceCard(),
               const SizedBox(height: 24),
-              // ===== Express Surcharge =====
-              _buildPricingCard(
-                leadingIcon: Icons.bolt_rounded,
-                iconColor: const Color(0xFFCA8A04),
-                bgColor: const Color(0xFFFEF9C3),
-                title: "Express Service",
-                subtitle: "Additional charge for rush service",
-                label: "Express Surcharge (Rp)",
-                controller: _expressSurchargeC,
-                currentText:
-                    "Additional: Rp ${_formatNumberWithComma(_parseRupiahToInt(_expressSurchargeC.text))}",
-              ),
+              // ===== Express Service (Surcharge + Estimasi) =====
+              _buildExpressServiceCard(),
               const SizedBox(height: 24),
               // ===== Ironing =====
               _buildPricingCard(
@@ -564,6 +556,318 @@ class _PricingScreenState extends State<PricingScreen> {
               'assets/svg/mynaui_trash.svg',
               color: const Color(0xFFEF4444),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // Regular Service Card (Price + Estimasi)
+  // =========================
+  Widget _buildRegularServiceCard() {
+    final regularPrice = _parseRupiahToInt(_pricePerKiloC.text);
+    final regularHours = int.tryParse(_regularEstimatedHoursC.text) ?? 48;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bgCard,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFFDF2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.attach_money_rounded,
+                  size: 34,
+                  color: Color(0xFF16A34A),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Kiloan Service', style: mBold),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Layanan standar + estimasi pengerjaan',
+                      style: sRegular,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          Divider(color: borderLight),
+          const SizedBox(height: 13),
+
+          // ===== Field 1: Price per Kilo =====
+          Text('Price per Kilogram (Rp)', style: smBold),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _pricePerKiloC,
+            keyboardType: TextInputType.number,
+            inputFormatters: [RupiahFormatter(showRp: false)],
+            style: smBold,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: bgInput,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+                borderSide: BorderSide(color: borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+                borderSide: BorderSide(color: borderFocus, width: 1.2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Current: Rp ${_formatNumberWithComma(regularPrice)} per kg',
+            style: xsRegular,
+          ),
+
+          const SizedBox(height: 18),
+          Divider(color: borderLight),
+          const SizedBox(height: 18),
+
+          // ===== Field 2: Estimasi Jam =====
+          Text('Estimasi Waktu (Jam)', style: smBold),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _regularEstimatedHoursC,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  style: smBold,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: '48',
+                    hintStyle: sRegular.copyWith(color: textMuted),
+                    filled: true,
+                    fillColor: bgInput,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(color: borderLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(color: borderFocus, width: 1.2),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: bgInput,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: borderLight),
+                ),
+                child: Center(
+                  child: Text(
+                    'Jam',
+                    style: smBold.copyWith(color: textSecondary),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Estimasi: $regularHours jam (~${(regularHours / 24).toStringAsFixed(1)} hari)',
+            style: xsRegular,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // Express Service Card (Surcharge + Estimasi)
+  // =========================
+  Widget _buildExpressServiceCard() {
+    final expressPrice = _parseRupiahToInt(_expressSurchargeC.text);
+    final expressHours = int.tryParse(_expressEstimatedHoursC.text) ?? 24;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bgCard,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF9C3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.bolt_rounded,
+                  size: 34,
+                  color: Color(0xFFCA8A04),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Express Service', style: mBold),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Layanan cepat + estimasi pengerjaan',
+                      style: sRegular,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          Divider(color: borderLight),
+          const SizedBox(height: 13),
+
+          // ===== Field 1: Surcharge =====
+          Text('Express Surcharge (Rp)', style: smBold),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _expressSurchargeC,
+            keyboardType: TextInputType.number,
+            inputFormatters: [RupiahFormatter(showRp: false)],
+            style: smBold,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: bgInput,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+                borderSide: BorderSide(color: borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+                borderSide: BorderSide(color: borderFocus, width: 1.2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Additional: Rp ${_formatNumberWithComma(expressPrice)}',
+            style: xsRegular,
+          ),
+
+          const SizedBox(height: 18),
+          Divider(color: borderLight),
+          const SizedBox(height: 18),
+
+          // ===== Field 2: Estimasi Jam =====
+          Text('Estimasi Waktu (Jam)', style: smBold),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _expressEstimatedHoursC,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  style: smBold,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: '24',
+                    hintStyle: sRegular.copyWith(color: textMuted),
+                    filled: true,
+                    fillColor: bgInput,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(color: borderLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(color: borderFocus, width: 1.2),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: bgInput,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: borderLight),
+                ),
+                child: Center(
+                  child: Text(
+                    'Jam',
+                    style: smBold.copyWith(color: textSecondary),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Estimasi: $expressHours jam (1x24 atau custom)',
+            style: xsRegular,
           ),
         ],
       ),
