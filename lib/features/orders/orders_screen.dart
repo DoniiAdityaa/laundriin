@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import 'package:laundriin/features/add_order/order_detail_screen.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/shared_widget/order_card_screen.dart';
@@ -79,8 +78,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
       statusFilter = 'pending'; // Waiting
     } else if (selectedTab == 1) {
       statusFilter = 'process'; // Process
-    } else {
+    } else if (selectedTab == 2) {
       statusFilter = 'completed'; // Done
+    } else if (selectedTab == 3) {
+      statusFilter = 'cancelled'; // Cancel ✅
+    } else {
+      statusFilter = 'Cancel';
     }
 
     setState(() {
@@ -198,6 +201,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         decoration: InputDecoration(
           icon: const Icon(Icons.search, color: Colors.grey),
           hintText: hintText,
+          hintStyle: smRegular,
           border: InputBorder.none,
         ),
       ),
@@ -319,7 +323,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const OrderDetailScreen(),
+                  builder: (_) => OrderDetailScreen(
+                    orderData: _filteredOrders[index],
+                  ),
                 ),
               );
             },

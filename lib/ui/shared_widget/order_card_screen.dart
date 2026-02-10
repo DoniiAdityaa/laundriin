@@ -42,6 +42,10 @@ class OrderCard extends StatelessWidget {
       statusLabel = 'Done';
       statusColor = const Color(0xFF1F8F5F);
       statusBgColor = const Color(0xFFE8F8F0);
+    } else if (status == 'cancelled') {
+      statusLabel = 'Cancelled';
+      statusColor = Colors.red;
+      statusBgColor = Colors.red.withOpacity(0.1);
     }
 
     // Label
