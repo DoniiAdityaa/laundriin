@@ -468,6 +468,8 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   notes: _notesC.text.trim().isNotEmpty
                       ? _notesC.text.trim()
                       : null,
+                  pricePerKilo: _pricePerKilo,
+                  expressCharge: _expressSurcharge,
                 ),
               ),
             );

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 import 'package:laundriin/features/auth/login_screen.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
+import 'package:laundriin/config/shop_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +15,12 @@ void main() async {
   );
   // Initialize date formatting untuk locale Indonesia
   await initializeDateFormatting('id_ID');
+
+  //
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
   runApp(const MyApp());
 }
 
@@ -58,8 +66,23 @@ class MyApp extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      // User sudah login, langsung ke dashboard
-      return const MainNavigation();
+      // User sudah login, load data toko dulu baru ke dashboard
+      return FutureBuilder(
+        future: Future.wait([
+          ShopSettings.loadFromFirestore(user.uid),
+          DeliveryConfig.loadFromDatabase(user.uid),
+        ]),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+          return const MainNavigation();
+        },
+      );
     } else {
       // User belum login, ke login screen
       return const LoginScreen();

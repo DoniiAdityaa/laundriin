@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
+import 'package:laundriin/config/shop_config.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,25 +31,11 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadShopName();
   }
 
-  Future<void> _loadShopName() async {
-    try {
-      final doc = await _firestore.collection('users').doc(_userId).get();
-      if (doc.exists && doc.data() != null) {
-        final shopInfo = doc.data()!['shopInfo'] ?? {};
-        final shopName = shopInfo['shopName']?.toString().trim();
-
-        setState(() {
-          _shopName = (shopName != null && shopName.isNotEmpty)
-              ? shopName
-              : 'laundriin';
-        });
-
-        print('[LOAD] Shop name: $_shopName');
-      }
-    } catch (e) {
-      print('[ERROR] Loading shop name: $e');
-      // Keep default 'laundriin' if error occurs
-    }
+  void _loadShopName() {
+    setState(() {
+      _shopName = ShopSettings.shopName;
+    });
+    print('[LOAD] Shop name from Settings: $_shopName');
   }
 
   @override

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:laundriin/ui/color.dart';
-import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/config/shop_config.dart';
 
@@ -20,6 +19,8 @@ class ReceiptScreen extends StatefulWidget {
   final int totalPrice;
   final int? discount;
   final String? notes;
+  final int? pricePerKilo;
+  final int? expressCharge;
 
   const ReceiptScreen({
     super.key,
@@ -37,6 +38,8 @@ class ReceiptScreen extends StatefulWidget {
     required this.totalPrice,
     this.discount,
     this.notes,
+    this.pricePerKilo,
+    this.expressCharge,
   });
 
   @override
@@ -83,11 +86,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               ),
             ),
             // Bottom Action Buttons
-            Positioned(
-              bottom: 24,
-              right: 16,
-              child: _buildActionButtons(),
-            ),
+            _buildActionButtons(),
           ],
         ),
       ),
@@ -99,10 +98,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     return Row(
       children: [
         InkWell(
-          onTap: () => Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => MainNavigation()),
-              (route) => false),
+          onTap: () => Navigator.pop(context),
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(8),
@@ -291,8 +287,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${widget.weight} Kg X ${_formatNumber(_getPricePerKilo())}',
+                '${widget.weight} Kg X ${_formatNumber(widget.pricePerKilo ?? 0)}',
                 style: xsRegular.copyWith(color: textMuted),
+              ),
+              Text(
+                _formatNumber(widget.weight * (widget.pricePerKilo ?? 0)),
+                style: xsRegular.copyWith(color: textPrimary),
               ),
             ],
           ),
@@ -327,6 +327,25 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               ),
             );
           }).toList(),
+        ],
+
+        // Express Charge
+        if (widget.speed.toLowerCase() == 'express' &&
+            (widget.expressCharge ?? 0) > 0) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Biaya Express',
+                style: sRegular.copyWith(color: textMuted),
+              ),
+              Text(
+                _formatNumber(widget.expressCharge ?? 0),
+                style: xsRegular.copyWith(color: textPrimary),
+              ),
+            ],
+          ),
         ],
       ],
     );
@@ -531,11 +550,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   String _getSpeedDisplay() {
     return widget.speed.toLowerCase() == 'express' ? 'Express' : 'Regular';
-  }
-
-  int _getPricePerKilo() {
-    // TODO: Ambil dari service type
-    return 7000;
   }
 
   String _formatNumber(int amount) {
