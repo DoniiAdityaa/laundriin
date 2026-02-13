@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,7 +10,9 @@ import 'package:laundriin/ui/shared_widget/order_card_screen.dart';
 import 'package:laundriin/ui/typography.dart';
 
 class OrdersScreen extends StatefulWidget {
-  const OrdersScreen({super.key});
+  final String? initialStatus;
+
+  const OrdersScreen({super.key, this.initialStatus});
 
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
@@ -27,16 +31,36 @@ class _OrdersScreenState extends State<OrdersScreen> {
   List<Map<String, dynamic>> _filteredOrders = [];
   bool _isLoading = true;
 
+  // Real-time listener
+  StreamSubscription? _ordersSubscription;
+
   @override
   void initState() {
     super.initState();
     searchController.addListener(_filterOrders);
+
+    // Set selectedTab based on initialStatus
+    if (widget.initialStatus != null) {
+      if (widget.initialStatus == 'pending') {
+        selectedTab = 0;
+      } else if (widget.initialStatus == 'process') {
+        selectedTab = 1;
+      } else if (widget.initialStatus == 'completed') {
+        selectedTab = 2;
+      } else if (widget.initialStatus == 'cancelled') {
+        selectedTab = 3;
+      }
+    }
+
+    _setupRealtimeListener();
     _loadOrders();
   }
 
   @override
   void dispose() {
+    searchController.removeListener(_filterOrders);
     searchController.dispose();
+    _ordersSubscription?.cancel();
     super.dispose();
   }
 
@@ -50,22 +74,59 @@ class _OrdersScreenState extends State<OrdersScreen> {
           .orderBy('createdAt', descending: true)
           .get();
 
-      setState(() {
-        _allOrders = snapshot.docs.map((doc) {
-          final data = doc.data();
-          return {
-            'id': doc.id,
-            ...data,
-          };
-        }).toList();
-        _isLoading = false;
-        print('[ORDERS] Loaded ${_allOrders.length} orders');
-      });
+      if (mounted) {
+        setState(() {
+          _allOrders = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              ...data,
+            };
+          }).toList();
+          _isLoading = false;
+          print('[ORDERS] Loaded ${_allOrders.length} orders');
+        });
 
-      _filterOrders();
+        _filterOrders();
+      }
     } catch (e) {
       print('[ERROR] Load orders: $e');
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  /// ===== SETUP REAL-TIME LISTENER =====
+  void _setupRealtimeListener() {
+    try {
+      _ordersSubscription = _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('orders')
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted) {
+          setState(() {
+            _allOrders = snapshot.docs.map((doc) {
+              final data = doc.data();
+              return {
+                'id': doc.id,
+                ...data,
+              };
+            }).toList();
+          });
+          _filterOrders();
+          print('[ORDERS] ✅ Real-time update: ${_allOrders.length} orders');
+        }
+      }, onError: (e) {
+        print('[ORDERS] ❌ Stream error: $e');
+      });
+
+      print('[ORDERS] ✅ Real-time listener setup');
+    } catch (e) {
+      print('[ORDERS] ❌ Error setup listener: $e');
     }
   }
 
@@ -86,30 +147,35 @@ class _OrdersScreenState extends State<OrdersScreen> {
       statusFilter = 'Cancel';
     }
 
-    setState(() {
-      _filteredOrders = _allOrders.where((order) {
-        final orderStatus = order['status'] ?? 'pending';
-        final customerName =
-            order['customerName']?.toString().toLowerCase() ?? '';
-        final orderId = order['orderId']?.toString().toLowerCase() ?? '';
+    if (mounted) {
+      setState(() {
+        _filteredOrders = _allOrders.where((order) {
+          final orderStatus = order['status'] ?? 'pending';
+          final customerName =
+              order['customerName']?.toString().toLowerCase() ?? '';
+          final orderId = order['orderId']?.toString().toLowerCase() ?? '';
 
-        // Filter by status
-        bool statusMatch = orderStatus == statusFilter;
+          // Filter by status
+          bool statusMatch = orderStatus == statusFilter;
 
-        // Filter by search
-        bool searchMatch = searchText.isEmpty ||
-            customerName.contains(searchText) ||
-            orderId.contains(searchText);
+          // Filter by search
+          bool searchMatch = searchText.isEmpty ||
+              customerName.contains(searchText) ||
+              orderId.contains(searchText);
 
-        return statusMatch && searchMatch;
-      }).toList();
-    });
+          return statusMatch && searchMatch;
+        }).toList();
+      });
 
-    print('[FILTER] Status: $statusFilter, Results: ${_filteredOrders.length}');
+      print(
+          '[FILTER] Status: $statusFilter, Results: ${_filteredOrders.length}');
+    }
   }
 
   Future<void> _onRefresh() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     await _loadOrders();
   }
 
@@ -231,10 +297,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          setState(() {
-            selectedTab = index;
-          });
-          _filterOrders();
+          if (mounted) {
+            setState(() {
+              selectedTab = index;
+            });
+            _filterOrders();
+          }
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),

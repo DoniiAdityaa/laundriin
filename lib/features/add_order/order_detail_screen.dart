@@ -914,6 +914,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
+        color: Colors.white,
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1123,26 +1124,92 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             onTap: () {
                               showDialog(
                                 context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Hapus Foto?'),
-                                  content: const Text(
-                                      'Foto ini akan dihapus dari Cloudinary dan Firestore.'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('Batal'),
+                                builder: (context) => Dialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        24, 32, 24, 24),
+                                    decoration: BoxDecoration(
+                                      color: white,
+                                      borderRadius: BorderRadius.circular(24),
                                     ),
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                        _deletePhoto(_photos[index]);
-                                      },
-                                      child: const Text(
-                                        'Hapus',
-                                        style: TextStyle(color: Colors.red),
-                                      ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('Hapus Foto', style: mBold),
+                                        const SizedBox(
+                                          height: 12,
+                                        ),
+                                        Text(
+                                            'Apakah anda yakin ingin menghapus foto ini?'),
+                                        const SizedBox(
+                                          height: 24,
+                                        ),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Expanded(
+                                                child: ElevatedButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context),
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          const Color(
+                                                              0xFFF3F4F6),
+                                                      elevation: 0,
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(14),
+                                                      ),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 14),
+                                                    ),
+                                                    child: Text(
+                                                      'Tidak',
+                                                      style: smMedium.copyWith(
+                                                          color: Colors.black),
+                                                    ))),
+                                            const SizedBox(width: 15),
+                                            Expanded(
+                                                child: ElevatedButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            context,
+                                                            _deletePhoto(
+                                                                _photos[
+                                                                    index])),
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          Colors.red,
+                                                      elevation: 0,
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(14),
+                                                      ),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 14),
+                                                    ),
+                                                    child: Text(
+                                                      'Yes',
+                                                      style: smMedium.copyWith(
+                                                          color: white),
+                                                    ))),
+                                          ],
+                                        )
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               );
                             },
