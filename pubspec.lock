@@ -297,6 +297,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.1.2"
+  cloudinary_api:
+    dependency: "direct main"
+    description:
+      name: cloudinary_api
+      sha256: "698e06e34e4e2ae2c9a429ea49330e7a09fdba9749f5f9956b35a6b3231eb36a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
+  cloudinary_url_gen:
+    dependency: transitive
+    description:
+      name: cloudinary_url_gen
+      sha256: "7bc052deef297ebe4abe630ef51440674a0b3bf2fe2b54d46bcfcb33c0f2e219"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.8.0"
   code_builder:
     dependency: transitive
     description:
@@ -1113,7 +1129,7 @@ packages:
     source: hosted
     version: "0.15.6"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -1137,7 +1153,7 @@ packages:
     source: hosted
     version: "4.1.2"
   image:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: image
       sha256: "492bd52f6c4fbb6ee41f781ff27765ce5f627910e1e0cbecfa3d9add5562604c"
@@ -2093,6 +2109,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  universal_io:
+    dependency: transitive
+    description:
+      name: universal_io
+      sha256: f63cbc48103236abf48e345e07a03ce5757ea86285ed313a6a032596ed9301e2
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.1"
   url_launcher:
     dependency: "direct main"
     description:

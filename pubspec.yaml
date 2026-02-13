@@ -78,7 +78,7 @@ dependencies:
   package_info_plus: ^8.0.0
   url_launcher: ^6.2.5
   intl: ^0.20.2
-  image_picker: ^1.1.2
+  image_picker: ^1.2.1
   super_tooltip: ^2.0.8
   open_file: ^3.5.3
   file_picker: ^8.1.2
@@ -91,6 +91,8 @@ dependencies:
   flutter_pdfview: ^1.4.0
   path: ^1.9.0
   jiffy: ^6.3.2
+  http: ^1.2.0
+  image: ^4.1.0
 
   # Transision & Animation
   page_transition: ^2.2.1
@@ -130,6 +132,7 @@ dependencies:
   geocoding: ^4.0.0
   flutter_fortune_wheel: ^1.3.2
   flutter_flavorizr: ^2.4.1
+  cloudinary_api: ^1.1.1
 
 dev_dependencies:
   flutter_test:

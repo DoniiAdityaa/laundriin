@@ -1,6 +1,6 @@
 # 🧺 Laundriin
 
-Aplikasi manajemen laundry berbasis Flutter yang dirancang untuk memudahkan pemilik laundry mengelola pesanan, harga layanan, dan pelanggan secara efisien.
+Aplikasi manajemen laundry berbasis Flutter yang dirancang untuk memudahkan pemilik laundry mengelola pesanan, harga layanan, dan pelanggan secara efisien. 3 service (Auth + Firestore + Cloudinary) = clean architecture
 
 ## 📋 Gambaran Proyek
 

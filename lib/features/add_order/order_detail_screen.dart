@@ -3,11 +3,13 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/utility/app_loading_overlay.dart';
 import 'package:laundriin/utility/receipt_screen.dart';
 import 'package:laundriin/config/shop_config.dart';
+import 'package:laundriin/services/cloudinary_service.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final Map<String, dynamic> orderData;
@@ -23,10 +25,15 @@ class OrderDetailScreen extends StatefulWidget {
 
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   late Map<String, dynamic> _orderData;
+  List<String> _photos = []; // Cloud URLs
+  Map<String, double> _uploadProgress = {}; // Track upload progress per photo
+  Map<String, bool> _isUploading = {}; // Track upload state per photo
+
   late String _currentStatus;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final CloudinaryService _cloudinaryService = CloudinaryService();
   bool _isUpdating = false;
 
   @override
@@ -34,6 +41,31 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     super.initState();
     _orderData = widget.orderData;
     _currentStatus = _orderData['status'] ?? 'pending';
+
+    // ===== LOAD PHOTOS FROM FIRESTORE =====
+    _loadPhotosFromFirestore();
+  }
+
+  /// Load photos dari Firestore saat screen dibuka
+  Future<void> _loadPhotosFromFirestore() async {
+    try {
+      final doc = await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('orders')
+          .doc(_orderData['id'])
+          .get();
+
+      if (doc.exists && mounted) {
+        final photos = List<String>.from(doc['photos'] ?? []);
+        setState(() {
+          _photos = photos;
+        });
+        print('[PHOTOS] ✅ Loaded ${photos.length} photos from Firestore');
+      }
+    } catch (e) {
+      print('[PHOTOS] ❌ Error loading photos: $e');
+    }
   }
 
   Future<void> _updateOrderStatus(String newStatus) async {
@@ -485,7 +517,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ),
                   if (notes.isNotEmpty)
                     _infoRow(
-                      icon: 'assets/images/zap-2.png',
+                      icon: 'assets/images/spiral_note_pad-2.png',
                       title: 'Notes',
                       value: notes,
                     ),
@@ -527,7 +559,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // ===== Photos (Only show on COMPLETED status) =====
+            if (_currentStatus == 'completed') ...[
+              _buildPhotos(),
+              const SizedBox(height: 16),
+            ],
 
             // ===== ACTION BUTTONS =====
             Column(
@@ -692,6 +730,449 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               textAlign: TextAlign.right,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== CLOUDINARY: PICK IMAGE DARI CAMERA =====
+  Future<void> _pickAndUploadFromCamera() async {
+    try {
+      final tempId = 'photo-${DateTime.now().millisecondsSinceEpoch}';
+
+      setState(() {
+        _isUploading[tempId] = true;
+        _uploadProgress[tempId] = 0.0;
+      });
+
+      final secureUrl = await _cloudinaryService.pickAndUploadImage(
+        orderId: _orderData['id'] ?? 'unknown',
+        source: ImageSource.camera,
+        photoType: 'order-photo',
+        onProgress: (progress) {
+          if (mounted) {
+            setState(() {
+              _uploadProgress[tempId] = progress;
+            });
+          }
+        },
+      );
+
+      // Success - add URL to list
+      if (mounted) {
+        setState(() {
+          _photos.add(secureUrl);
+          _isUploading.remove(tempId);
+          _uploadProgress.remove(tempId);
+        });
+
+        // Save to Firestore immediately
+        await _savePhotosToFirestore();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Foto berhasil diupload ke Cloudinary'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final tempId = 'photo-${DateTime.now().millisecondsSinceEpoch}';
+        setState(() {
+          _isUploading.remove(tempId);
+          _uploadProgress.remove(tempId);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // ===== CLOUDINARY: PICK IMAGE DARI GALLERY =====
+  Future<void> _pickAndUploadFromGallery() async {
+    try {
+      final tempId = 'photo-${DateTime.now().millisecondsSinceEpoch}';
+
+      setState(() {
+        _isUploading[tempId] = true;
+        _uploadProgress[tempId] = 0.0;
+      });
+
+      final secureUrl = await _cloudinaryService.pickAndUploadImage(
+        orderId: _orderData['id'] ?? 'unknown',
+        source: ImageSource.gallery,
+        photoType: 'order-photo',
+        onProgress: (progress) {
+          if (mounted) {
+            setState(() {
+              _uploadProgress[tempId] = progress;
+            });
+          }
+        },
+      );
+
+      // Success - add URL to list
+      if (mounted) {
+        setState(() {
+          _photos.add(secureUrl);
+          _isUploading.remove(tempId);
+          _uploadProgress.remove(tempId);
+        });
+
+        // Save to Firestore immediately
+        await _savePhotosToFirestore();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Foto berhasil diupload ke Cloudinary'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final tempId = 'photo-${DateTime.now().millisecondsSinceEpoch}';
+        setState(() {
+          _isUploading.remove(tempId);
+          _uploadProgress.remove(tempId);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // ===== SAVE PHOTOS TO FIRESTORE =====
+  Future<void> _savePhotosToFirestore() async {
+    try {
+      await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('orders')
+          .doc(_orderData['id'])
+          .update({
+        'photos': _photos,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      print('[FIRESTORE] ✅ Photos saved: $_photos');
+    } catch (e) {
+      print('[FIRESTORE] ❌ Error saving photos: $e');
+      // Don't show error snackbar karena user sudah tau foto uploadnya berhasil
+    }
+  }
+
+  // ===== DELETE PHOTO =====
+  Future<void> _deletePhoto(String photoUrl) async {
+    try {
+      setState(() {
+        _photos.remove(photoUrl);
+      });
+
+      await _savePhotosToFirestore();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Foto dihapus'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _photos.add(photoUrl); // Revert
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ===== SHOW PHOTO SOURCE PICKER =====
+  void _showPhotoSourcePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Ambil Foto Dari',
+              style: mBold,
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: SvgPicture.asset(
+                'assets/svg/camera-22.svg',
+                width: 25,
+                height: 25,
+              ),
+              title: Text(
+                'Camera',
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadFromCamera();
+              },
+            ),
+            ListTile(
+              leading: SvgPicture.asset(
+                'assets/svg/image-galery-2.svg',
+                width: 25,
+                height: 25,
+              ),
+              title: const Text('Gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadFromGallery();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===== SHOW IMAGE PREVIEW FULLSCREEN =====
+  void _showImagePreview(String imageUrl) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(0),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Fullscreen Image
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: Colors.black87,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            white.withOpacity(0.7)),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.image_not_supported,
+                              size: 80, color: Colors.grey.shade400),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Gagal load gambar',
+                            style: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            // Close Button
+            Positioned(
+              top: 40,
+              right: 20,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    color: white,
+                    size: 28,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===== add photos =====
+  Widget _buildPhotos() {
+    return _sectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Add Photos (Optional)',
+              style: sRegular.copyWith(color: textMuted)),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 90,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _photos.length + 1, // extra 1 buat tombol add
+              itemBuilder: (context, index) {
+                // ===== BOX ADD PHOTO =====
+                if (index == _photos.length) {
+                  return GestureDetector(
+                    onTap: _showPhotoSourcePicker,
+                    child: Container(
+                      width: 90,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                        color: const Color(0xFFF8F8F8),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.add, size: 28, color: Colors.grey),
+                      ),
+                    ),
+                  );
+                }
+
+                // ===== PHOTO ITEM WITH DELETE =====
+                return GestureDetector(
+                  onTap: () => _showImagePreview(_photos[index]),
+                  child: Stack(
+                    children: [
+                      // Photo Container
+                      Container(
+                        width: 90,
+                        height: 90,
+                        margin: const EdgeInsets.only(right: 10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey.shade300,
+                            width: 1,
+                          ),
+                          image: DecorationImage(
+                            image: NetworkImage(_photos[index]),
+                            fit: BoxFit.cover,
+                            onError: (exception, stackTrace) {
+                              print('Error loading image: $exception');
+                            },
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        // Overlay - hint untuk tap preview
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.black.withOpacity(0.0),
+                          ),
+                        ),
+                      ),
+
+                      // Delete Button - Improved
+                      Positioned(
+                        top: 1,
+                        right: 10,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Hapus Foto?'),
+                                  content: const Text(
+                                      'Foto ini akan dihapus dari Cloudinary dan Firestore.'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Batal'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                        _deletePhoto(_photos[index]);
+                                      },
+                                      child: const Text(
+                                        'Hapus',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withOpacity(0.4),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ],
