@@ -7,7 +7,6 @@ import 'dart:async';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/config/shop_config.dart';
-import 'package:laundriin/features/orders/orders_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,11 +29,16 @@ class _HomeScreenState extends State<HomeScreen> {
   int _inProcessCount = 0;
   int _completedCount = 0;
 
+  // Income tracking
+  int _incomeTodayCompleted = 0;
+  int _incomeWeekCompleted = 0;
+
   // Recent orders
   List<Map<String, dynamic>> _recentOrders = [];
 
   // Real-time listeners
   StreamSubscription? _ordersSubscription;
+  StreamSubscription? _incomeSubscription;
 
   String _getFormattedDate() {
     final now = DateTime.now();
@@ -48,12 +52,14 @@ class _HomeScreenState extends State<HomeScreen> {
     _userId = _auth.currentUser?.uid ?? '';
     _loadShopName();
     _setupRealtimeListeners();
+    _setupIncomeListener();
   }
 
   @override
   void dispose() {
     // Cancel listeners saat dispose
     _ordersSubscription?.cancel();
+    _incomeSubscription?.cancel();
     super.dispose();
   }
 
@@ -153,22 +159,82 @@ class _HomeScreenState extends State<HomeScreen> {
     print('[HOME] 🔄 Recent orders updated: ${_recentOrders.length}');
   }
 
+  /// ===== SETUP INCOME LISTENER =====
+  void _setupIncomeListener() {
+    try {
+      final today = DateTime.now();
+      final startOfDay = DateTime(today.year, today.month, today.day);
+      final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59);
+
+      // Calculate start of week (Monday)
+      final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+      final startOfWeekDate =
+          DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+
+      // Listen to completed orders for income calculation
+      _incomeSubscription = _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('orders')
+          .where('status', isEqualTo: 'completed')
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted) {
+          _calculateIncome(snapshot, startOfDay, endOfDay, startOfWeekDate);
+        }
+      }, onError: (e) {
+        print('[HOME] ❌ Income stream error: $e');
+      });
+
+      print('[HOME] ✅ Income listener setup');
+    } catch (e) {
+      print('[HOME] ❌ Error setup income listener: $e');
+    }
+  }
+
+  /// ===== CALCULATE INCOME =====
+  void _calculateIncome(QuerySnapshot snapshot, DateTime startOfDay,
+      DateTime endOfDay, DateTime startOfWeek) {
+    int todayIncome = 0;
+    int weekIncome = 0;
+
+    // Calculate income from completed orders
+    for (var doc in snapshot.docs) {
+      final createdAt = doc['createdAt'] as Timestamp?;
+      final totalPrice = doc['totalPrice'] ?? 0;
+
+      if (createdAt != null) {
+        final docDate = createdAt.toDate();
+
+        // Today's income
+        if (docDate.isAfter(startOfDay) && docDate.isBefore(endOfDay)) {
+          todayIncome += totalPrice as int;
+        }
+
+        // This week's income (last 7 days from Monday)
+        final weekEndDate =
+            startOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59));
+        if (docDate.isAfter(startOfWeek) && docDate.isBefore(weekEndDate)) {
+          weekIncome += totalPrice as int;
+        }
+      }
+    }
+
+    setState(() {
+      _incomeTodayCompleted = todayIncome;
+      _incomeWeekCompleted = weekIncome;
+    });
+
+    print(
+        '[HOME] 💰 Income updated - Today: $todayIncome, This Week: $weekIncome');
+  }
+
   /// ===== MANUAL REFRESH (Pull-to-refresh) =====
   Future<void> _refreshOrders() async {
     print('[HOME] 🔁 Manual refresh triggered');
     // Real-time listener akan auto update, tapi trigger manual juga bisa
     await Future.delayed(const Duration(milliseconds: 500));
     return;
-  }
-
-  /// ===== NAVIGATE TO ORDERS SCREEN BY STATUS =====
-  void _navigateToOrdersScreen(String status) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => OrdersScreen(initialStatus: status),
-      ),
-    );
   }
 
   @override
@@ -442,6 +508,22 @@ class _HomeScreenState extends State<HomeScreen> {
               statusLabel = 'Unknown';
           }
 
+          // Status text color
+          Color statusTextColor;
+          switch (status) {
+            case 'pending':
+              statusTextColor = const Color(0xFF9A6A00);
+              break;
+            case 'process':
+              statusTextColor = const Color(0xFF2F5FE3);
+              break;
+            case 'completed':
+              statusTextColor = const Color(0xFF1F8F5F);
+              break;
+            default:
+              statusTextColor = Colors.grey[500]!;
+          }
+
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -473,6 +555,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: xsRegular.copyWith(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
+                            color: statusTextColor,
                           ),
                         ),
                       ),
@@ -488,7 +571,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       'Rp ${_formatCurrency(totalPrice)}',
-                      style: smBold,
+                      style: smBold.copyWith(color: Colors.blue),
                     ),
                     const SizedBox(height: 4),
                   ],
@@ -502,21 +585,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCardIncome() {
-    // Hardcode data - nanti ganti dengan database
-    const int totalIncomeMonth = 5450000;
-    const int incomeToday = 250000;
-    const int incomeWeek = 1800000;
-    const double trendPercentage = 5.2;
-
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            blue500.withOpacity(0.9),
-            blue600.withOpacity(0.9),
+            blue500.withOpacity(0.92),
+            blue600.withOpacity(0.92),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
@@ -535,8 +612,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
@@ -544,25 +621,51 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: const Icon(
                   Icons.trending_up_rounded,
                   color: Colors.white,
-                  size: 24,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Total Income',
-                      style: sRegular.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                      'Pemasukan',
+                      style: mBold.copyWith(
+                        color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Income Today & This Week - New Layout
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Today Income
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      'Februari 2026',
-                      style: xsRegular.copyWith(
-                        color: Colors.white.withOpacity(0.7),
+                      'Rp ${_formatCurrency(_incomeTodayCompleted)}',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Hari ini',
+                      style: sRegular.copyWith(
+                        color: Colors.white.withOpacity(0.75),
                       ),
                     ),
                   ],
@@ -573,29 +676,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 16),
 
-          // Main amount
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                'Rp ',
-                style: smBold.copyWith(color: Colors.white),
-              ),
-              Text(
-                _formatCurrency(totalIncomeMonth),
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          // Divider
+          // Divider Line
           Container(
             height: 1,
             decoration: BoxDecoration(
@@ -603,85 +684,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
-          // Details row
+          // This Week
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Today
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hari ini',
-                      style: xsRegular.copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Rp ${_formatCurrency(incomeToday)}',
-                      style: smBold.copyWith(color: Colors.white),
-                    ),
-                  ],
+              Text(
+                'Minggu ini',
+                style: sRegular.copyWith(
+                  color: Colors.white.withOpacity(0.75),
                 ),
               ),
-              // Trend
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Trend',
-                      style: xsRegular.copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          trendPercentage > 0
-                              ? Icons.arrow_upward_rounded
-                              : Icons.arrow_downward_rounded,
-                          color: trendPercentage > 0
-                              ? const Color(0xFF4ADE80)
-                              : const Color(0xFFFCA5A5),
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${trendPercentage.toStringAsFixed(1)}%',
-                          style: smBold.copyWith(
-                            color: trendPercentage > 0
-                                ? const Color(0xFF4ADE80)
-                                : const Color(0xFFFCA5A5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              // Week
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Minggu ini',
-                      style: xsRegular.copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Rp ${_formatCurrency(incomeWeek)}',
-                      style: smBold.copyWith(color: Colors.white),
-                    ),
-                  ],
+              Text(
+                'Rp ${_formatCurrency(_incomeWeekCompleted)}',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
               ),
             ],

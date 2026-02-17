@@ -740,11 +740,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   // ===== CLOUDINARY: PICK IMAGE DARI CAMERA =====
   Future<void> _pickAndUploadFromCamera() async {
     try {
-      final tempId = 'photo-${DateTime.now().millisecondsSinceEpoch}';
+      final tempId = 'photo-camera-${DateTime.now().millisecondsSinceEpoch}';
 
+      // Add temporary loading item
       setState(() {
         _isUploading[tempId] = true;
         _uploadProgress[tempId] = 0.0;
+        _photos.add(tempId); // Add placeholder
       });
 
       final secureUrl = await _cloudinaryService.pickAndUploadImage(
@@ -760,10 +762,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         },
       );
 
-      // Success - add URL to list
+      // Success - replace temp with actual URL
       if (mounted) {
         setState(() {
-          _photos.add(secureUrl);
+          final index = _photos.indexOf(tempId);
+          if (index != -1) {
+            _photos[index] = secureUrl;
+          }
           _isUploading.remove(tempId);
           _uploadProgress.remove(tempId);
         });
@@ -773,7 +778,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Foto berhasil diupload ke Cloudinary'),
+            content: Text('✅ Foto berhasil diupload'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -781,10 +786,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final tempId = 'photo-${DateTime.now().millisecondsSinceEpoch}';
         setState(() {
-          _isUploading.remove(tempId);
-          _uploadProgress.remove(tempId);
+          _photos.removeWhere((p) => _isUploading.containsKey(p));
+          for (final key in _isUploading.keys.toList()) {
+            if (key.startsWith('photo-camera-')) {
+              _isUploading.remove(key);
+              _uploadProgress.remove(key);
+            }
+          }
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -801,11 +810,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   // ===== CLOUDINARY: PICK IMAGE DARI GALLERY =====
   Future<void> _pickAndUploadFromGallery() async {
     try {
-      final tempId = 'photo-${DateTime.now().millisecondsSinceEpoch}';
+      final tempId = 'photo-gallery-${DateTime.now().millisecondsSinceEpoch}';
 
+      // Add temporary loading item
       setState(() {
         _isUploading[tempId] = true;
         _uploadProgress[tempId] = 0.0;
+        _photos.add(tempId); // Add placeholder
       });
 
       final secureUrl = await _cloudinaryService.pickAndUploadImage(
@@ -821,10 +832,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         },
       );
 
-      // Success - add URL to list
+      // Success - replace temp with actual URL
       if (mounted) {
         setState(() {
-          _photos.add(secureUrl);
+          final index = _photos.indexOf(tempId);
+          if (index != -1) {
+            _photos[index] = secureUrl;
+          }
           _isUploading.remove(tempId);
           _uploadProgress.remove(tempId);
         });
@@ -834,7 +848,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Foto berhasil diupload ke Cloudinary'),
+            content: Text('✅ Foto berhasil diupload'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -842,10 +856,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final tempId = 'photo-${DateTime.now().millisecondsSinceEpoch}';
         setState(() {
-          _isUploading.remove(tempId);
-          _uploadProgress.remove(tempId);
+          _photos.removeWhere((p) => _isUploading.containsKey(p));
+          for (final key in _isUploading.keys.toList()) {
+            if (key.startsWith('photo-gallery-')) {
+              _isUploading.remove(key);
+              _uploadProgress.remove(key);
+            }
+          }
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1074,168 +1092,197 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   );
                 }
 
-                // ===== PHOTO ITEM WITH DELETE =====
-                return GestureDetector(
-                  onTap: () => _showImagePreview(_photos[index]),
+                // ===== PHOTO ITEM WITH DELETE & LOADING =====
+                final photoUrl = _photos[index];
+                final isUploading = _isUploading[photoUrl] ?? false;
+                final progress = _uploadProgress[photoUrl] ?? 0.0;
+
+                return Container(
+                  width: 90,
+                  margin: const EdgeInsets.only(right: 10),
                   child: Stack(
                     children: [
-                      // Photo Container
-                      Container(
-                        width: 90,
-                        height: 90,
-                        margin: const EdgeInsets.only(right: 10),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.grey.shade300,
-                            width: 1,
-                          ),
-                          image: DecorationImage(
-                            image: NetworkImage(_photos[index]),
-                            fit: BoxFit.cover,
-                            onError: (exception, stackTrace) {
-                              print('Error loading image: $exception');
-                            },
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        // Overlay - hint untuk tap preview
+                      // Photo Container with Loading
+                      GestureDetector(
+                        onTap: isUploading
+                            ? null
+                            : () => _showImagePreview(photoUrl),
                         child: Container(
+                          width: 90,
+                          height: 90,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            color: Colors.black.withOpacity(0.0),
+                            border: Border.all(
+                              color: Colors.grey.shade300,
+                              width: 1,
+                            ),
+                            image: !isUploading
+                                ? DecorationImage(
+                                    image: NetworkImage(photoUrl),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                            color: isUploading ? Colors.grey.shade100 : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
+                          child: isUploading
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      CircularProgressIndicator(
+                                        value: progress,
+                                        strokeWidth: 3,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                blue500),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${(progress * 100).toStringAsFixed(0)}%',
+                                        style: xsRegular.copyWith(
+                                          fontSize: 10,
+                                          color: blue500,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : null,
                         ),
                       ),
 
-                      // Delete Button - Improved
-                      Positioned(
-                        top: 1,
-                        right: 10,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => Dialog(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.fromLTRB(
-                                        24, 32, 24, 24),
-                                    decoration: BoxDecoration(
-                                      color: white,
+                      // Delete Button
+                      if (!isUploading)
+                        Positioned(
+                          top: 1,
+                          right: 10,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => Dialog(
+                                    shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(24),
                                     ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text('Hapus Foto', style: mBold),
-                                        const SizedBox(
-                                          height: 12,
-                                        ),
-                                        Text(
-                                            'Apakah anda yakin ingin menghapus foto ini?'),
-                                        const SizedBox(
-                                          height: 24,
-                                        ),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Expanded(
-                                                child: ElevatedButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(context),
-                                                    style: ElevatedButton
-                                                        .styleFrom(
-                                                      backgroundColor:
-                                                          const Color(
-                                                              0xFFF3F4F6),
-                                                      elevation: 0,
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(14),
+                                    child: Container(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          24, 32, 24, 24),
+                                      decoration: BoxDecoration(
+                                        color: white,
+                                        borderRadius: BorderRadius.circular(24),
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text('Hapus Foto', style: mBold),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                              'Apakah anda yakin ingin menghapus foto ini?'),
+                                          const SizedBox(height: 24),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Expanded(
+                                                  child: ElevatedButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context),
+                                                      style: ElevatedButton
+                                                          .styleFrom(
+                                                        backgroundColor:
+                                                            const Color(
+                                                                0xFFF3F4F6),
+                                                        elevation: 0,
+                                                        shape:
+                                                            RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(14),
+                                                        ),
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                vertical: 14),
                                                       ),
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          vertical: 14),
-                                                    ),
-                                                    child: Text(
-                                                      'Tidak',
-                                                      style: smMedium.copyWith(
-                                                          color: Colors.black),
-                                                    ))),
-                                            const SizedBox(width: 15),
-                                            Expanded(
-                                                child: ElevatedButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                            context,
-                                                            _deletePhoto(
-                                                                _photos[
-                                                                    index])),
-                                                    style: ElevatedButton
-                                                        .styleFrom(
-                                                      backgroundColor:
-                                                          Colors.red,
-                                                      elevation: 0,
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(14),
+                                                      child: Text(
+                                                        'Tidak',
+                                                        style:
+                                                            smMedium.copyWith(
+                                                                color: Colors
+                                                                    .black),
+                                                      ))),
+                                              const SizedBox(width: 15),
+                                              Expanded(
+                                                  child: ElevatedButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context,
+                                                              _deletePhoto(
+                                                                  photoUrl)),
+                                                      style: ElevatedButton
+                                                          .styleFrom(
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                        elevation: 0,
+                                                        shape:
+                                                            RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(14),
+                                                        ),
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                vertical: 14),
                                                       ),
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          vertical: 14),
-                                                    ),
-                                                    child: Text(
-                                                      'Yes',
-                                                      style: smMedium.copyWith(
-                                                          color: white),
-                                                    ))),
-                                          ],
-                                        )
-                                      ],
+                                                      child: Text(
+                                                        'Yes',
+                                                        style:
+                                                            smMedium.copyWith(
+                                                                color: white),
+                                                      ))),
+                                            ],
+                                          )
+                                        ],
+                                      ),
                                     ),
                                   ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.red.withOpacity(0.4),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.red.withOpacity(0.4),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 12,
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 );

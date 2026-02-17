@@ -31,6 +31,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
   List<Map<String, dynamic>> _filteredOrders = [];
   bool _isLoading = true;
 
+  // Order counts by status
+  int _pendingCount = 0;
+  int _processCount = 0;
+
   // Real-time listener
   StreamSubscription? _ordersSubscription;
 
@@ -83,6 +87,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
               ...data,
             };
           }).toList();
+          _updateOrderCounts();
           _isLoading = false;
           print('[ORDERS] Loaded ${_allOrders.length} orders');
         });
@@ -116,6 +121,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 ...data,
               };
             }).toList();
+            _updateOrderCounts();
           });
           _filterOrders();
           print('[ORDERS] ✅ Real-time update: ${_allOrders.length} orders');
@@ -128,6 +134,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
     } catch (e) {
       print('[ORDERS] ❌ Error setup listener: $e');
     }
+  }
+
+  void _updateOrderCounts() {
+    _pendingCount = _allOrders.where((o) => o['status'] == 'pending').length;
+    _processCount = _allOrders.where((o) => o['status'] == 'process').length;
   }
 
   void _filterOrders() {
@@ -294,6 +305,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
       textColor = const Color(0xFFC62828);
     }
 
+    // Get count for this tab (except Cancel tab)
+    int count = 0;
+    if (index == 0) count = _pendingCount;
+    if (index == 1) count = _processCount;
+
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -314,11 +330,38 @@ class _OrdersScreenState extends State<OrdersScreen> {
               width: 1,
             ),
           ),
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: smSemiBold.copyWith(
-              color: isActive ? textColor : Colors.grey,
+          child: Center(
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 6,
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: smSemiBold.copyWith(
+                    color: isActive ? textColor : Colors.grey,
+                  ),
+                ),
+                // Badge counter (hanya untuk Waiting & Process)
+                if (count > 0 && (index == 0 || index == 1))
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: textColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      count.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
