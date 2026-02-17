@@ -103,8 +103,8 @@ class _ShopInformationState extends State<ShopInformation> {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // ===== Header =====
             _buildHeader(
-                title: 'Shop Information',
-                subtitle: 'Manage your shop information'),
+                title: 'Informasi Toko',
+                subtitle: 'Kelola informasi toko Anda'),
             const SizedBox(height: 24),
             _buildCardShop(),
             const SizedBox(height: 32),
@@ -142,7 +142,7 @@ class _ShopInformationState extends State<ShopInformation> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Save Changes',
+                            'Simpan Perubahan',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
@@ -239,10 +239,10 @@ class _ShopInformationState extends State<ShopInformation> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Shop Information', style: smSemiBold),
+                Text('Informasi Toko', style: smSemiBold),
                 const SizedBox(height: 4),
                 Text(
-                  'Details about your laundry shop',
+                  'Detail tentang toko laundry Anda',
                   style: xsRegular,
                 ),
               ],
@@ -254,7 +254,7 @@ class _ShopInformationState extends State<ShopInformation> {
         const SizedBox(height: 16),
 
         // ===== Shop Name =====
-        Text("Shop Name", style: smBold),
+        Text("Nama Toko", style: smBold),
         const SizedBox(height: 8),
         TextField(
           controller: _shopNameC,
@@ -283,7 +283,7 @@ class _ShopInformationState extends State<ShopInformation> {
         const SizedBox(height: 16),
 
         // ===== Owner Name =====
-        Text("Owner Name", style: smBold),
+        Text("Nama Pemilik", style: smBold),
         const SizedBox(height: 8),
         TextField(
           controller: _ownerNameC,
@@ -312,20 +312,20 @@ class _ShopInformationState extends State<ShopInformation> {
         const SizedBox(height: 16),
 
         // ===== WhatsApp =====
-        Text("WhatsApp Number", style: smBold),
+        Text("Nomor WhatsApp", style: smBold),
         const SizedBox(height: 8),
         TextField(
           controller: _whatsappC,
           keyboardType: TextInputType.phone,
-          style: sRegular.copyWith(color: textPrimary),
+          style: smBold.copyWith(color: textPrimary),
           decoration: InputDecoration(
-            hintText: "e.g. 6281234567890",
+            hintText: "081xxxx",
             hintStyle: sRegular.copyWith(color: textMuted),
-            prefixText: "+",
+            prefixText: "+62 ",
             filled: true,
             fillColor: bgInput,
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
+              horizontal: 16,
               vertical: 14,
             ),
             enabledBorder: OutlineInputBorder(
@@ -342,7 +342,7 @@ class _ShopInformationState extends State<ShopInformation> {
         const SizedBox(height: 16),
 
         // ===== Shop Address (Optional) =====
-        Text("Shop Address (Optional)", style: smBold),
+        Text("Alamat Toko (Opsional)", style: smBold),
         const SizedBox(height: 8),
         TextField(
           controller: _addressC,

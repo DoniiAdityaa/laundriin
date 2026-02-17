@@ -146,7 +146,7 @@ class _PricingScreenState extends State<PricingScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString()}'),
+          content: Text('Kesalahan: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -185,8 +185,8 @@ class _PricingScreenState extends State<PricingScreen> {
             children: [
               // ===== Header =====
               _buildHeader(
-                  title: 'Pricing Settings',
-                  subtitle: 'Manage kiloan and non-kiloan prices'),
+                  title: 'Pengaturan Harga',
+                  subtitle: 'Kelola harga kiloan dan non-kiloan'),
               const SizedBox(height: 24),
               // ===== Regular Service (Price + Estimasi) =====
               _buildRegularServiceCard(),
@@ -197,47 +197,47 @@ class _PricingScreenState extends State<PricingScreen> {
               // ===== Ironing =====
               _buildPricingCard(
                 leadingIcon: Icons.local_laundry_service_rounded,
-                iconColor: const Color(0xFF0891B2),
-                bgColor: const Color(0xFFCFFAFE),
-                title: "Ironing Service",
+                iconColor: blue500,
+                bgColor: blue100,
+                title: "Layanan Setrika",
                 subtitle: "Hanya setrika",
-                label: "Price per Kilogram (Rp)",
+                label: "Harga per Kilogram (Rp)",
                 controller: _ironingC,
                 currentText:
-                    "Current: Rp ${_formatNumberWithComma(_parseRupiahToInt(_ironingC.text))} per kg",
+                    "Saat ini: Rp ${_formatNumberWithComma(_parseRupiahToInt(_ironingC.text))} per kg",
               ),
               const SizedBox(height: 24),
               // ===== Dry Wash =====
               _buildPricingCard(
                 leadingIcon: Icons.opacity_rounded,
-                iconColor: const Color(0xFF06B6D4),
-                bgColor: const Color(0xFFECFDF5),
-                title: "Dry Wash Service",
+                iconColor: blue500,
+                bgColor: blue100,
+                title: "Layanan Cuci Kering",
                 subtitle: "Hanya cuci (semi-kering)",
-                label: "Price per Kilogram (Rp)",
+                label: "Harga per Kilogram (Rp)",
                 controller: _dryWashC,
                 currentText:
-                    "Current: Rp ${_formatNumberWithComma(_parseRupiahToInt(_dryWashC.text))} per kg",
+                    "Saat ini: Rp ${_formatNumberWithComma(_parseRupiahToInt(_dryWashC.text))} per kg",
               ),
               const SizedBox(height: 24),
               // ===== Steam Ironing =====
               _buildPricingCard(
                 leadingIcon: Icons.cloud_rounded,
-                iconColor: const Color(0xFFEC4899),
-                bgColor: const Color(0xFFFCE7F3),
-                title: "Steam Ironing Service",
+                iconColor: blue500,
+                bgColor: blue100,
+                title: "Layanan Setrika Uap",
                 subtitle: "Setrika dengan uap",
-                label: "Price per Kilogram (Rp)",
+                label: "Harga per Kilogram (Rp)",
                 controller: _steamIroningC,
                 currentText:
-                    "Current: Rp ${_formatNumberWithComma(_parseRupiahToInt(_steamIroningC.text))} per kg",
+                    "Saat ini: Rp ${_formatNumberWithComma(_parseRupiahToInt(_steamIroningC.text))} per kg",
               ),
               const SizedBox(height: 24),
               _buildSatuanCard(
                   leadingIcon: Icons.attach_money_rounded,
-                  title: 'Non-Kiloan Items',
-                  subtitle: 'items-based',
-                  label: 'a',
+                  title: 'Item Non-Kiloan',
+                  subtitle: 'berbasis item',
+                  label: 'Harga per Item (Rp)',
                   controller: _jacketC,
                   currentText: ''),
 
@@ -279,7 +279,7 @@ class _PricingScreenState extends State<PricingScreen> {
                               width: 8,
                             ),
                             Text(
-                              'Save All Changes',
+                              'Simpan Semua Perubahan',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -373,13 +373,13 @@ class _PricingScreenState extends State<PricingScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFFDF2), // hijau muda halus
+                  color: blue100, // hijau muda halus
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(
                   Icons.attach_money_rounded,
                   size: 34,
-                  color: Color(0xFF16A34A), // hijau
+                  color: blue500, // hijau
                 ),
               ),
               const SizedBox(width: 14),
@@ -446,7 +446,7 @@ class _PricingScreenState extends State<PricingScreen> {
                   controller: TextEditingController(text: price.toString()),
                   hintText: 'Rp $price',
                   onEdit: () => _add(
-                    title: 'Edit Item',
+                    title: 'Ubah Item',
                     subtitle: 'Update item non-kiloan',
                     initialName: item['name']?.toString() ?? '',
                     initialPrice: price.toString(),
@@ -592,13 +592,13 @@ class _PricingScreenState extends State<PricingScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFFDF2),
+                  color: blue100,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.attach_money_rounded,
                   size: 34,
-                  color: Color(0xFF16A34A),
+                  color: blue500,
                 ),
               ),
               const SizedBox(width: 14),
@@ -606,7 +606,7 @@ class _PricingScreenState extends State<PricingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Kiloan Service', style: mBold),
+                    Text('Layanan Kiloan', style: mBold),
                     const SizedBox(height: 4),
                     Text(
                       'Layanan standar + estimasi pengerjaan',
@@ -622,7 +622,7 @@ class _PricingScreenState extends State<PricingScreen> {
           const SizedBox(height: 13),
 
           // ===== Field 1: Price per Kilo =====
-          Text('Price per Kilogram (Rp)', style: smBold),
+          Text('Harga per Kilogram (Rp)', style: smBold),
           const SizedBox(height: 10),
           TextField(
             controller: _pricePerKiloC,
@@ -649,7 +649,7 @@ class _PricingScreenState extends State<PricingScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Current: Rp ${_formatNumberWithComma(regularPrice)} per kg',
+            'Saat ini: Rp ${_formatNumberWithComma(regularPrice)} per kg',
             style: xsRegular,
           ),
 
@@ -748,13 +748,13 @@ class _PricingScreenState extends State<PricingScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF9C3),
+                  color: blue100,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.bolt_rounded,
                   size: 34,
-                  color: Color(0xFFCA8A04),
+                  color: blue500,
                 ),
               ),
               const SizedBox(width: 14),
@@ -762,7 +762,7 @@ class _PricingScreenState extends State<PricingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Express Service', style: mBold),
+                    Text('Layanan Ekspres', style: mBold),
                     const SizedBox(height: 4),
                     Text(
                       'Layanan cepat + estimasi pengerjaan',
@@ -778,7 +778,7 @@ class _PricingScreenState extends State<PricingScreen> {
           const SizedBox(height: 13),
 
           // ===== Field 1: Surcharge =====
-          Text('Express Surcharge (Rp)', style: smBold),
+          Text('Biaya Tambahan Ekspres (Rp)', style: smBold),
           const SizedBox(height: 10),
           TextField(
             controller: _expressSurchargeC,
@@ -805,7 +805,7 @@ class _PricingScreenState extends State<PricingScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Additional: Rp ${_formatNumberWithComma(expressPrice)}',
+            'Tambahan: Rp ${_formatNumberWithComma(expressPrice)}',
             style: xsRegular,
           ),
 
@@ -866,7 +866,7 @@ class _PricingScreenState extends State<PricingScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Estimasi: $expressHours jam (1x24 atau custom)',
+            'Estimasi: $expressHours jam (1x24 atau khusus)',
             style: xsRegular,
           ),
         ],
@@ -1035,14 +1035,14 @@ class _PricingScreenState extends State<PricingScreen> {
                 const SizedBox(height: 18),
 
                 // ===== Item Name =====
-                Text("Item Name", style: smBold),
+                Text("Nama Item", style: smBold),
                 const SizedBox(height: 8),
                 TextField(
                   controller: nameC,
                   textCapitalization: TextCapitalization.words,
                   style: sBold.copyWith(color: textPrimary),
                   decoration: InputDecoration(
-                    hintText: "e.g. Blanket",
+                    hintText: "Contoh: Selimut",
                     hintStyle: sRegular.copyWith(color: textMuted),
                     filled: true,
                     fillColor: bgInput,
@@ -1064,7 +1064,7 @@ class _PricingScreenState extends State<PricingScreen> {
                 const SizedBox(height: 14),
 
                 // ===== Price =====
-                Text("Price (Rp)", style: smBold),
+                Text("Harga (Rp)", style: smBold),
                 const SizedBox(height: 8),
                 TextField(
                   controller: priceC,
@@ -1072,7 +1072,7 @@ class _PricingScreenState extends State<PricingScreen> {
                   inputFormatters: [RupiahFormatter(showRp: false)],
                   style: sBold.copyWith(color: textPrimary),
                   decoration: InputDecoration(
-                    hintText: "e.g. 25000",
+                    hintText: "Contoh: 25000",
                     hintStyle: sRegular.copyWith(color: textMuted),
                     filled: true,
                     fillColor: bgInput,
@@ -1203,7 +1203,7 @@ class _PricingScreenState extends State<PricingScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: Text("Save", style: smBold.copyWith(color: white)),
+                    child: Text("Simpan", style: smBold.copyWith(color: white)),
                   ),
                 ),
               ],

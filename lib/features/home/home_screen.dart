@@ -266,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: 15,
                 ),
                 Text(
-                  'Order Status',
+                  'Status Pesanan',
                   style: mBold,
                 ),
                 const SizedBox(height: 15),
@@ -276,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: 15,
                 ),
                 Text(
-                  'Recent Orders',
+                  'Pesanan Terbaru',
                   style: mBold,
                 ),
                 const SizedBox(
@@ -301,40 +301,40 @@ class _HomeScreenState extends State<HomeScreen> {
       mainAxisSpacing: 12,
       childAspectRatio: 1.0,
       children: [
-        // Today's Orders - NON-CLICKABLE
+        // Pesanan Hari Ini
         _buildOrderCard(
           icon: Icons.inventory_2_rounded,
-          iconColor: const Color(0xFF8B3DFF),
+          iconColor: blue500,
           count: _todayOrdersCount,
-          title: "Today's Orders",
-          iconBgColor: const Color(0xFFF3E8FF),
+          title: "Pesanan Hari Ini",
+          iconBgColor: blue50,
           isClickable: false,
         ),
-        // Waiting - CLICKABLE
+        // Menunggu
         _buildOrderCard(
           icon: Icons.schedule_rounded,
-          iconColor: const Color(0xFFCA8A04),
+          iconColor: blue500,
           count: _waitingCount,
-          title: "Waiting",
-          iconBgColor: const Color(0xFFFEF9C3),
+          title: "Menunggu",
+          iconBgColor: blue50,
           isClickable: true,
         ),
-        // In Process - CLICKABLE
+        // Dalam Proses
         _buildOrderCard(
           icon: Icons.hourglass_bottom_rounded,
-          iconColor: const Color(0xFF2563EB),
+          iconColor: blue600,
           count: _inProcessCount,
-          title: "In Process",
-          iconBgColor: const Color(0xFFE0ECFF),
+          title: "Dalam Proses",
+          iconBgColor: blue50,
           isClickable: true,
         ),
-        // Completed - CLICKABLE
+        // Selesai
         _buildOrderCard(
           icon: Icons.check_circle_rounded,
-          iconColor: const Color(0xFF16A34A),
+          iconColor: blue600,
           count: _completedCount,
-          title: "Completed",
-          iconBgColor: const Color(0xFFDCFCE7),
+          title: "Selesai",
+          iconBgColor: blue50,
           isClickable: true,
         ),
       ],
@@ -441,14 +441,14 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No orders today yet',
+              'Belum ada pesanan hari ini',
               style: mBold.copyWith(
                 color: Colors.grey[500],
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'New orders will appear here',
+              'Pesanan baru akan muncul di sini',
               style: sRegular.copyWith(
                 color: Colors.grey[500],
               ),
@@ -484,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           final order = _recentOrders[index];
           final status = order['status'] ?? 'pending';
-          final customerName = order['customerName'] ?? 'Unknown';
+          final customerName = order['customerName'] ?? 'Tidak Diketahui';
           final totalPrice = order['totalPrice'] ?? 0;
 
           // Status badge color
@@ -492,36 +492,36 @@ class _HomeScreenState extends State<HomeScreen> {
           String statusLabel;
           switch (status) {
             case 'pending':
-              statusColor = const Color(0xFFFEF9C3);
-              statusLabel = 'Waiting';
+              statusColor = gray100;
+              statusLabel = 'Menunggu';
               break;
             case 'process':
-              statusColor = const Color(0xFFE0ECFF);
-              statusLabel = 'In Process';
+              statusColor = blue100;
+              statusLabel = 'Dalam Proses';
               break;
             case 'completed':
-              statusColor = const Color(0xFFDCFCE7);
-              statusLabel = 'Done';
+              statusColor = const Color(0xFFE8F8F0);
+              statusLabel = 'Selesai';
               break;
             default:
-              statusColor = Colors.grey[200]!;
-              statusLabel = 'Unknown';
+              statusColor = gray100;
+              statusLabel = 'Tidak Diketahui';
           }
 
           // Status text color
           Color statusTextColor;
           switch (status) {
             case 'pending':
-              statusTextColor = const Color(0xFF9A6A00);
+              statusTextColor = gray500;
               break;
             case 'process':
-              statusTextColor = const Color(0xFF2F5FE3);
+              statusTextColor = blue600;
               break;
             case 'completed':
               statusTextColor = const Color(0xFF1F8F5F);
               break;
             default:
-              statusTextColor = Colors.grey[500]!;
+              statusTextColor = gray500;
           }
 
           return Padding(

@@ -16,7 +16,7 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final customerName = order['customerName'] ?? 'Unknown';
+    final customerName = order['customerName'] ?? 'Tidak Diketahui';
     final totalPrice = order['totalPrice'] ?? 0;
     final status = order['status'] ?? 'pending';
     final createdAt = order['createdAt'] as Timestamp?;
@@ -30,20 +30,20 @@ class OrderCard extends StatelessWidget {
     }
 
     // Status
-    String statusLabel = 'Waiting';
+    String statusLabel = 'Menunggu';
     Color statusColor = const Color(0xFF9A6A00);
     Color statusBgColor = const Color(0xFFFFF4C2);
 
     if (status == 'process') {
-      statusLabel = 'Processing';
+      statusLabel = 'Memproses';
       statusColor = const Color(0xFF2F5FE3);
       statusBgColor = const Color(0xFFE8F1FF);
     } else if (status == 'completed') {
-      statusLabel = 'Done';
+      statusLabel = 'Selesai';
       statusColor = const Color(0xFF1F8F5F);
       statusBgColor = const Color(0xFFE8F8F0);
     } else if (status == 'cancelled') {
-      statusLabel = 'Cancelled';
+      statusLabel = 'Dibatalkan';
       statusColor = Colors.red;
       statusBgColor = Colors.red.withOpacity(0.1);
     }
@@ -163,7 +163,7 @@ class OrderCard extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // Price
+            // Harga
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

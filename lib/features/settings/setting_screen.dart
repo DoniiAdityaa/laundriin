@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:laundriin/features/settings/shop_information.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:laundriin/ui/color.dart';
@@ -66,7 +67,7 @@ class _SettingScreenState extends State<SettingScreen> {
 
               // Title
               Text(
-                "Logout?",
+                "Keluar?",
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -103,7 +104,7 @@ class _SettingScreenState extends State<SettingScreen> {
                       ),
                       onPressed: () => Navigator.pop(context),
                       child: const Text(
-                        "Batal",
+                        "Batalkan",
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -141,12 +142,179 @@ class _SettingScreenState extends State<SettingScreen> {
                           }
                         } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Error: ${e.toString()}")),
+                            SnackBar(
+                                content: Text("Kesalahan: ${e.toString()}")),
                           );
                         }
                       },
                       child: const Text(
-                        "Logout",
+                        "Keluar",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteAllOrders() async {
+    // Show confirmation dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEBEE),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.delete_sweep_rounded,
+                  color: Color(0xFFEF4444),
+                  size: 36,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title
+              Text(
+                "Hapus Semua Pesanan?",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Message
+              Text(
+                "Tindakan ini akan menghapus SEMUA pesanan. Tidak dapat dibatalkan!",
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Buttons
+              Row(
+                children: [
+                  // Cancel Button
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF3F4F6),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Batalkan",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Delete Button
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                        elevation: 2,
+                        shadowColor: const Color(0xFFEF4444).withOpacity(0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        try {
+                          // Show loading
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => Center(
+                              child: CircularProgressIndicator(
+                                color: blue500,
+                              ),
+                            ),
+                          );
+
+                          final userId = FirebaseAuth.instance.currentUser?.uid;
+                          if (userId == null) return;
+
+                          final firestore = FirebaseFirestore.instance;
+                          final ordersRef = firestore
+                              .collection('shops')
+                              .doc(userId)
+                              .collection('orders');
+
+                          // Get all order docs
+                          final snapshot = await ordersRef.get();
+
+                          // Delete each order
+                          for (var doc in snapshot.docs) {
+                            await doc.reference.delete();
+                          }
+
+                          if (mounted) {
+                            Navigator.pop(context); // Close loading dialog
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    '✅ ${snapshot.docs.length} pesanan dihapus'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            Navigator.pop(context); // Close loading dialog
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("Kesalahan: ${e.toString()}"),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text(
+                        "Hapus",
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -175,16 +343,16 @@ class _SettingScreenState extends State<SettingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title
-              const Text("Settings", style: mBold),
+              const Text("Pengaturan", style: mBold),
               const SizedBox(height: 14),
 
               // ===== Shop Information Section =====
               _buildMenuCard(
                   icon: Icons.store_rounded,
-                  title: 'Shop Information',
-                  subtitle: 'Manage your shop information',
-                  iconBgColor: const Color(0xFFDCF0FF),
-                  iconColor: blue600,
+                  title: 'Informasi Toko',
+                  subtitle: 'Kelola informasi toko Anda',
+                  iconBgColor: blue100,
+                  iconColor: blue500,
                   onTap: () {
                     Navigator.push(
                       context,
@@ -198,10 +366,10 @@ class _SettingScreenState extends State<SettingScreen> {
               // ===== Menu Cards =====
               _buildMenuCard(
                 icon: Icons.attach_money,
-                title: "Pricing Settings",
-                subtitle: "set kiloan and non-kiloan item prices",
-                iconBgColor: const Color(0xFFDCFFE6),
-                iconColor: green600,
+                title: "Pengaturan Harga",
+                subtitle: "atur harga item kiloan dan non-kiloan",
+                iconBgColor: blue100,
+                iconColor: blue500,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -215,11 +383,23 @@ class _SettingScreenState extends State<SettingScreen> {
 
               _buildMenuCard(
                 icon: Icons.chat_bubble_outline_outlined,
-                title: "Whatsapp Template",
-                subtitle: "customize notification messages",
-                iconBgColor: const Color(0xFFFFF0DC),
-                iconColor: const Color(0xFFEA8C2E),
+                title: "Template Whatsapp",
+                subtitle: "buat pesan notifikasi kustom",
+                iconBgColor: blue100,
+                iconColor: blue500,
                 onTap: () {},
+              ),
+
+              const SizedBox(height: 10),
+
+              // ===== Debug: Delete All Orders (Development Only) =====
+              _buildMenuCard(
+                icon: Icons.delete_sweep_rounded,
+                title: "Hapus Semua Pesanan",
+                subtitle: "hapus semua data pesanan (debug)",
+                iconBgColor: const Color(0xFFFFEBEE),
+                iconColor: const Color(0xFFEF4444),
+                onTap: _deleteAllOrders,
               ),
 
               const SizedBox(height: 20),
@@ -364,7 +544,7 @@ class _SettingScreenState extends State<SettingScreen> {
             const Icon(Icons.logout_rounded, color: Colors.white),
             const SizedBox(width: 10),
             Text(
-              "Logout",
+              "Keluar",
               style: xsBold.copyWith(
                 color: Colors.white,
                 fontSize: 16,

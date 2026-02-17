@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:laundriin/ui/color.dart';
 import 'firebase_options.dart';
 import 'package:laundriin/features/auth/login_screen.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
@@ -39,6 +40,19 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'Flutter Demo',
         theme: ThemeData(
+          useMaterial3: true,
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          focusColor: Colors.transparent,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: blue600, // warna brand kamu
+          ),
+
+          progressIndicatorTheme: const ProgressIndicatorThemeData(
+            color: blue600,
+          ),
           // This is the theme of your application.
           //
           // TRY THIS: Try running your application with "flutter run". You'll see
@@ -54,7 +68,6 @@ class MyApp extends StatelessWidget {
           //
           // This works for code too, not just values: Most code changes can be
           // tested with just a hot reload.
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         ),
         home: _initialScreen(),
       ),

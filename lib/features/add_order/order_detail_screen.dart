@@ -72,7 +72,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (_isUpdating) return;
 
     setState(() => _isUpdating = true);
-    AppLoading.show(context, message: 'Updating status...');
+    AppLoading.show(context, message: 'Memperbarui status...');
 
     try {
       await _firestore
@@ -91,7 +91,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         AppLoading.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Order status updated to $newStatus'),
+            content: Text('Status pesanan diperbarui ke $newStatus'),
             backgroundColor: Colors.green,
           ),
         );
@@ -101,7 +101,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         AppLoading.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Kesalahan: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -128,9 +128,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Cancel Order', style: mBold),
+              Text('Batalkan Pesanan', style: mBold),
               const SizedBox(height: 12),
-              Text('Are you sure you want to cancel this order?'),
+              Text('Apakah Anda yakin ingin membatalkan pesanan ini?'),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -147,7 +147,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                           child: Text(
-                            'No',
+                            'Tidak',
                             style: smMedium.copyWith(color: Colors.black),
                           ))),
                   const SizedBox(
@@ -165,7 +165,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                           child: Text(
-                            'Yes',
+                            'Ya',
                             style: smMedium.copyWith(color: white),
                           ))),
                 ],
@@ -202,7 +202,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               Text('Delete Order', style: mBold),
               const SizedBox(height: 12),
               Text(
-                  'Are you sure you want to delete this order? This action cannot be undone.'),
+                  'Apakah Anda yakin ingin menghapus pesanan ini? Tindakan ini tidak dapat dibatalkan.'),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -219,7 +219,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                           child: Text(
-                            'No',
+                            'Tidak',
                             style: smMedium.copyWith(color: Colors.black),
                           ))),
                   const SizedBox(
@@ -237,7 +237,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                           child: Text(
-                            'Yes',
+                            'Ya',
                             style: smMedium.copyWith(color: white),
                           ))),
                 ],
@@ -252,7 +252,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       if (_isUpdating) return;
 
       setState(() => _isUpdating = true);
-      AppLoading.show(context, message: 'Deleting order...');
+      AppLoading.show(context, message: 'Menghapus pesanan...');
 
       try {
         await _firestore
@@ -266,7 +266,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           AppLoading.hide(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Order deleted successfully'),
+              content: Text('Pesanan berhasil dihapus'),
               backgroundColor: Colors.green,
             ),
           );
@@ -368,20 +368,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         speed.isNotEmpty ? speed[0].toUpperCase() + speed.substring(1) : '';
 
     // Status badge
-    String statusLabel = 'Waiting';
+    String statusLabel = 'Menunggu';
     Color statusColor = const Color(0xFF9A6A00);
     Color statusBgColor = const Color(0xFFFFF4C2);
 
     if (_currentStatus == 'process') {
-      statusLabel = 'Processing';
+      statusLabel = 'Memproses';
       statusColor = const Color(0xFF2F5FE3);
       statusBgColor = const Color(0xFFE8F1FF);
     } else if (_currentStatus == 'completed') {
-      statusLabel = 'Done';
+      statusLabel = 'Selesai';
       statusColor = const Color(0xFF1F8F5F);
       statusBgColor = const Color(0xFFE8F8F0);
     } else if (_currentStatus == 'cancelled') {
-      statusLabel = 'Cancelled';
+      statusLabel = 'Dibatalkan';
       statusColor = Colors.red;
       statusBgColor = Colors.red.withOpacity(0.1);
     }
@@ -408,7 +408,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
         ],
         title: Text(
-          'Order Detail',
+          'Detail Pesanan',
           style: mBold,
         ),
         centerTitle: true,
@@ -456,7 +456,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Order ID: $orderId',
+                    'ID Pesanan: $orderId',
                     style: xsRegular.copyWith(color: textMuted),
                   ),
                 ],
@@ -495,30 +495,30 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 children: [
                   _infoRow(
                     icon: 'assets/images/basket.png',
-                    title: 'Category',
+                    title: 'Kategori',
                     value: categoryLabel,
                   ),
                   _infoRow(
                     icon: 'assets/images/zap-2.png',
-                    title: 'Speed',
+                    title: 'Kecepatan',
                     value: speedLabel,
                   ),
                   if (weight > 0)
                     _infoRow(
                       icon: 'assets/images/package.png',
-                      title: 'Weight',
+                      title: 'Berat',
                       value: '$weight kg',
                     ),
                   if (items.isNotEmpty)
                     _infoRow(
                       icon: 'assets/images/package.png',
-                      title: 'Items',
-                      value: '${items.length} pcs',
+                      title: 'Item',
+                      value: '${items.length} buah',
                     ),
                   if (notes.isNotEmpty)
                     _infoRow(
                       icon: 'assets/images/spiral_note_pad-2.png',
-                      title: 'Notes',
+                      title: 'Catatan',
                       value: notes,
                     ),
                 ],
@@ -532,7 +532,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Total Price',
+                  Text('Harga Total',
                       style: sRegular.copyWith(color: textMuted)),
                   const SizedBox(height: 8),
                   Text(
@@ -552,7 +552,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   const Icon(Icons.access_time, size: 18, color: Colors.grey),
                   const SizedBox(width: 8),
                   Text(
-                    'Created: $dateStr',
+                    'Dibuat: $dateStr',
                     style: sRegular.copyWith(color: textMuted),
                   ),
                 ],
@@ -585,7 +585,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           ? null
                           : () => _updateOrderStatus('process'),
                       child: Text(
-                        'Start Process',
+                        'Mulai Proses',
                         style: smSemiBold.copyWith(color: Colors.white),
                       ),
                     ),
@@ -603,7 +603,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ),
                       onPressed: _isUpdating ? null : _cancelOrder,
                       child: Text(
-                        'Cancel Order',
+                        'Batalkan Pesanan',
                         style: smSemiBold.copyWith(color: Colors.red),
                       ),
                     ),
@@ -623,7 +623,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           ? null
                           : () => _updateOrderStatus('completed'),
                       child: Text(
-                        'Mark as Done',
+                        'Selesai',
                         style: smSemiBold.copyWith(color: Colors.white),
                       ),
                     ),
@@ -643,12 +643,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         // Open WhatsApp or similar
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('WhatsApp integration coming soon'),
+                            content:
+                                Text('Integrasi WhatsApp akan segera hadir'),
                           ),
                         );
                       },
                       child: Text(
-                        'Message on WhatsApp',
+                        'Pesan di WhatsApp',
                         style: smSemiBold.copyWith(color: Colors.white),
                       ),
                     ),
@@ -666,7 +667,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ),
                       onPressed: _isUpdating ? null : _deleteOrder,
                       child: Text(
-                        'Delete Order',
+                        'Hapus Pesanan',
                         style: smSemiBold.copyWith(color: Colors.white),
                       ),
                     ),
@@ -949,7 +950,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 height: 25,
               ),
               title: Text(
-                'Camera',
+                'Kamera',
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -962,7 +963,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 width: 25,
                 height: 25,
               ),
-              title: const Text('Gallery'),
+              title: const Text('Galeri'),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndUploadFromGallery();

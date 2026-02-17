@@ -141,7 +141,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
     _processCount = _allOrders.where((o) => o['status'] == 'process').length;
   }
 
-  void _filterOrders() {
+  /// Calculate filtered orders without setState
+  List<Map<String, dynamic>> _calculateFilteredOrders() {
     final searchText = searchController.text.toLowerCase();
 
     // Map tab index ke status
@@ -153,33 +154,37 @@ class _OrdersScreenState extends State<OrdersScreen> {
     } else if (selectedTab == 2) {
       statusFilter = 'completed'; // Done
     } else if (selectedTab == 3) {
-      statusFilter = 'cancelled'; // Cancel ✅
+      statusFilter = 'cancelled'; // Cancel
     } else {
       statusFilter = 'Cancel';
     }
 
+    // Lazy load: hanya filter orders untuk tab yang active
+    final ordersForTab = _allOrders
+        .where((order) => (order['status'] ?? 'pending') == statusFilter)
+        .toList();
+
+    // Kemudian apply search filter
+    return ordersForTab.where((order) {
+      final customerName =
+          order['customerName']?.toString().toLowerCase() ?? '';
+      final orderId = order['orderId']?.toString().toLowerCase() ?? '';
+
+      bool searchMatch = searchText.isEmpty ||
+          customerName.contains(searchText) ||
+          orderId.contains(searchText);
+
+      return searchMatch;
+    }).toList();
+  }
+
+  void _filterOrders() {
     if (mounted) {
       setState(() {
-        _filteredOrders = _allOrders.where((order) {
-          final orderStatus = order['status'] ?? 'pending';
-          final customerName =
-              order['customerName']?.toString().toLowerCase() ?? '';
-          final orderId = order['orderId']?.toString().toLowerCase() ?? '';
-
-          // Filter by status
-          bool statusMatch = orderStatus == statusFilter;
-
-          // Filter by search
-          bool searchMatch = searchText.isEmpty ||
-              customerName.contains(searchText) ||
-              orderId.contains(searchText);
-
-          return statusMatch && searchMatch;
-        }).toList();
+        _filteredOrders = _calculateFilteredOrders();
       });
 
-      print(
-          '[FILTER] Status: $statusFilter, Results: ${_filteredOrders.length}');
+      print('[FILTER] Tab: $selectedTab, Results: ${_filteredOrders.length}');
     }
   }
 
@@ -204,7 +209,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Title
-                  const Text("Orders", style: mBold),
+                  const Text("Pesanan", style: mBold),
                   const SizedBox(height: 14),
                   // Searching
                   _buildSearchBar(
@@ -226,13 +231,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         )
                       ],
                     ),
-                    child: Row(
-                      children: [
-                        _buildTab("Waiting", 0),
-                        _buildTab("Process", 1),
-                        _buildTab("Done", 2),
-                        _buildTab("Cancel", 3),
-                      ],
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Row(
+                        children: [
+                          _buildTab("Menunggu", 0),
+                          const SizedBox(width: 6),
+                          _buildTab("Proses", 1),
+                          const SizedBox(width: 6),
+                          _buildTab("Selesai", 2),
+                          const SizedBox(width: 6),
+                          _buildTab("Batal", 3),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -288,82 +300,63 @@ class _OrdersScreenState extends State<OrdersScreen> {
   Widget _buildTab(String title, int index) {
     final bool isActive = selectedTab == index;
 
-    Color bgColor;
-    Color textColor;
+    // ===== STYLE =====
+    Color activeColor = blue600;
+    Color inactiveText = Colors.grey.shade600;
 
-    if (index == 0) {
-      bgColor = const Color(0xFFFFF4C2); // soft yellow
-      textColor = const Color(0xFF9A6A00);
-    } else if (index == 1) {
-      bgColor = const Color(0xFFE8F1FF); // soft blue
-      textColor = const Color(0xFF2F5FE3);
-    } else if (index == 2) {
-      bgColor = const Color(0xFFE8F8F0); // soft green
-      textColor = const Color(0xFF1F8F5F);
-    } else {
-      bgColor = const Color(0xFFFFEAEA); // Cancel (soft red)
-      textColor = const Color(0xFFC62828);
-    }
-
-    // Get count for this tab (except Cancel tab)
     int count = 0;
     if (index == 0) count = _pendingCount;
     if (index == 1) count = _processCount;
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          if (mounted) {
-            setState(() {
-              selectedTab = index;
-            });
-            _filterOrders();
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isActive ? bgColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isActive ? Colors.grey[300]! : Colors.transparent,
-              width: 1,
-            ),
+    return GestureDetector(
+      onTap: () {
+        if (mounted) {
+          setState(() {
+            selectedTab = index;
+          });
+          _filterOrders();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: isActive ? blue50 : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive ? gray300 : Colors.transparent,
           ),
-          child: Center(
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 6,
-              children: [
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: smSemiBold.copyWith(
-                    color: isActive ? textColor : Colors.grey,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: smSemiBold.copyWith(
+                color: isActive ? activeColor : inactiveText,
+              ),
+            ),
+
+            // ===== BADGE INLINE =====
+            if (count > 0 && (index == 0 || index == 1)) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: blue600,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                // Badge counter (hanya untuk Waiting & Process)
-                if (count > 0 && (index == 0 || index == 1))
-                  Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: textColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      count.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -393,12 +386,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No orders',
+            'Tidak ada pesanan',
             style: mBold.copyWith(color: Colors.grey[500]),
           ),
           const SizedBox(height: 8),
           Text(
-            'No orders in this status yet',
+            'Belum ada pesanan dengan status ini',
             style: sRegular.copyWith(color: Colors.grey[500]),
           ),
         ],
@@ -424,6 +417,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
 
     return ListView.builder(
+        key: ValueKey('orders_tab_$selectedTab'), // Unique key per tab
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 120),
         itemCount: _filteredOrders.length,
