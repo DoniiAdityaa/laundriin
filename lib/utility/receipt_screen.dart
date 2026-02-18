@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
@@ -469,13 +470,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   // ===== Bottom Action Buttons =====
   Widget _buildActionButtons() {
     return Positioned(
-      right: 16,
-      bottom: 24,
+      right: 11,
+      bottom: 0,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _floatingButton(
-            icon: Icons.print,
+            icon: 'assets/svg/print_.svg',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Print coming soon')),
@@ -484,7 +485,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           ),
           const SizedBox(height: 12),
           _floatingButton(
-            icon: Icons.share,
+            icon: 'assets/svg/send_.svg',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Share coming soon')),
@@ -493,7 +494,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           ),
           const SizedBox(height: 12),
           _floatingButton(
-            icon: Icons.chair,
+            icon: 'assets/svg/whatsapp_.svg',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('WhatsApp coming soon')),
@@ -506,7 +507,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   Widget _floatingButton({
-    required IconData icon,
+    required String icon,
     required VoidCallback onTap,
   }) {
     return Material(
@@ -519,10 +520,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         child: SizedBox(
           width: 56,
           height: 56,
-          child: Icon(
-            icon, // nanti dioverride
-            color: Colors.white,
-            size: 26,
+          child: Center(
+            child: SvgPicture.asset(
+              icon,
+              color: Colors.white,
+              width: 28,
+            ),
           ),
         ),
       ),

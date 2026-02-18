@@ -153,9 +153,11 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   }
 
   void _clearCustomerSelection() {
+    // Clear text fields OUTSIDE setState to prevent listener conflict
+    _nameC.clear();
+    _phoneC.clear();
+
     setState(() {
-      _nameC.clear();
-      _phoneC.clear();
       _selectedGender = 'Laki-laki';
       _selectedCustomerId = null;
       _showSuggestions = false;
@@ -163,6 +165,129 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     });
 
     print('[CLEAR] Customer selection cleared');
+  }
+
+  void _showDeleteCustomerDialog(Map<String, dynamic> customer) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          decoration: BoxDecoration(
+            color: white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title
+              Text(
+                "Hapus Customer?",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Message
+              Text(
+                "Apakah Anda yakin ingin menghapus ${customer['name'] ?? 'customer'} dari daftar?",
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Buttons
+              Row(
+                children: [
+                  // Cancel Button
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF3F4F6),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Batal",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Delete Button
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                        elevation: 2,
+                        shadowColor: const Color(0xFFEF4444).withOpacity(0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(context);
+
+                        final id = customer['id'];
+
+                        if (id != null) {
+                          await _deleteCustomer(id);
+                        }
+
+                        _clearCustomerSelection();
+                      },
+                      child: const Text(
+                        "Hapus",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteCustomer(String customerId) async {
+    try {
+      await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('customers')
+          .doc(customerId)
+          .delete();
+
+      print('[DELETE] ✅ Customer removed from Firestore');
+    } catch (e) {
+      print('[DELETE] ❌ Delete error: $e');
+    }
   }
 
   void _addNonKiloanItem(String itemId) {
@@ -815,7 +940,8 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                               icon: const Icon(Icons.close_rounded),
                               iconSize: 20,
                               color: Colors.red[400],
-                              onPressed: () => _clearCustomerSelection(),
+                              onPressed: () =>
+                                  _showDeleteCustomerDialog(customer),
                             ),
                             onTap: () => _selectCustomer(customer),
                           );
