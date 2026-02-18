@@ -931,48 +931,60 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   // ===== SHOW PHOTO SOURCE PICKER =====
   void _showPhotoSourcePicker() {
     showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        color: Colors.white,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Ambil Foto Dari',
-              style: mBold,
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: SvgPicture.asset(
-                'assets/svg/camera-22.svg',
-                width: 25,
-                height: 25,
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (ctx) {
+          final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: Container(
+              decoration: BoxDecoration(
+                color: bgCard,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              title: Text(
-                'Kamera',
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Ambil Foto Dari',
+                    style: mBold,
+                  ),
+                  const SizedBox(height: 20),
+                  ListTile(
+                    leading: SvgPicture.asset(
+                      'assets/svg/camera-22.svg',
+                      width: 25,
+                      height: 25,
+                    ),
+                    title: Text(
+                      'Kamera',
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickAndUploadFromCamera();
+                    },
+                  ),
+                  ListTile(
+                    leading: SvgPicture.asset(
+                      'assets/svg/image-galery-2.svg',
+                      width: 25,
+                      height: 25,
+                    ),
+                    title: const Text('Galeri'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickAndUploadFromGallery();
+                    },
+                  ),
+                ],
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _pickAndUploadFromCamera();
-              },
             ),
-            ListTile(
-              leading: SvgPicture.asset(
-                'assets/svg/image-galery-2.svg',
-                width: 25,
-                height: 25,
-              ),
-              title: const Text('Galeri'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickAndUploadFromGallery();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+          );
+        });
   }
 
   // ===== SHOW IMAGE PREVIEW FULLSCREEN =====

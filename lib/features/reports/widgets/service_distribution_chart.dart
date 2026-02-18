@@ -26,23 +26,23 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
   StreamSubscription? _ordersSubscription;
   int _touchedIndex = -1;
 
-  // 5 services with colors
   final List<Map<String, dynamic>> _services = [
     {
       'name': 'Cuci Komplit',
-      'color': const Color(0xFF4F7DF3), // Soft Primary Blue
+      'color': const Color(0xFF5B8DEF), // Soft Primary Blue
     },
     {
       'name': 'Cuci Kering',
-      'color': const Color(0xFF9CA3AF), // Soft Gray
+      'color': const Color(0xFF9AA4B2), // Muted Cool Gray
     },
     {
       'name': 'Setrika',
-      'color': const Color(0xFF7AA2FF), // Soft Light Blue
+      'color': const Color(0xFF7CB4FF), // Soft Sky Blue
     },
     {
       'name': 'Setrika Uap',
-      'color': const Color(0xFFA5BFFF), // Pastel Blue
+      'color':
+          const Color(0xFF8FD3D6), // Soft Pastel Cyan (beda tapi masih calm)
     },
   ];
 

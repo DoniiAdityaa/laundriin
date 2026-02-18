@@ -187,7 +187,7 @@ class _IncomeTrendChartState extends State<IncomeTrendChart> {
     }
 
     final labels = <String>[];
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i <= 6; i++) {
       labels.add(_formatRupiah(interval * i));
     }
 
@@ -330,6 +330,7 @@ class _IncomeTrendChartState extends State<IncomeTrendChart> {
       maxY: maxY,
       lineBarsData: [
         LineChartBarData(
+          preventCurveOverShooting: true,
           spots: weekSpots,
           isCurved: true,
           gradient: LinearGradient(
@@ -477,6 +478,7 @@ class _IncomeTrendChartState extends State<IncomeTrendChart> {
       maxY: maxY,
       lineBarsData: [
         LineChartBarData(
+          preventCurveOverShooting: true,
           spots: monthSpots,
           isCurved: true,
           gradient: LinearGradient(
