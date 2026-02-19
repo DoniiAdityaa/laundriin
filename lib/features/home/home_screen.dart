@@ -492,7 +492,7 @@ class _HomeScreenState extends State<HomeScreen> {
           String statusLabel;
           switch (status) {
             case 'pending':
-              statusColor = gray100;
+              statusColor = Color(0xFFFFF4C2);
               statusLabel = 'Menunggu';
               break;
             case 'process':
@@ -512,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Color statusTextColor;
           switch (status) {
             case 'pending':
-              statusTextColor = gray500;
+              statusTextColor = Color(0xFF9A6A00);
               break;
             case 'process':
               statusTextColor = blue600;
