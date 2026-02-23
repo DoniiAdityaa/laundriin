@@ -27,10 +27,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
   int _currentPeriodOrders = 0;
   StreamSubscription? _incomeSubscription;
 
+  // Expense state
+  int _currentPeriodExpense = 0;
+  List<Map<String, dynamic>> _expenseItems = [];
+  StreamSubscription? _expenseSubscription;
+
   @override
   void initState() {
     super.initState();
     _setupIncomeListener();
+    _setupExpenseListener();
   }
 
   @override
@@ -42,6 +48,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   void dispose() {
     _incomeSubscription?.cancel();
+    _expenseSubscription?.cancel();
     super.dispose();
   }
 
@@ -133,13 +140,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
         '[INCOME] Current: Rp $_currentPeriodIncome | Previous: Rp $_previousPeriodIncome | Orders: $_currentPeriodOrders');
   }
 
-  double _calculateGrowthPercentage() {
-    if (_previousPeriodIncome == 0) return 0;
-    return ((_currentPeriodIncome - _previousPeriodIncome) /
-            _previousPeriodIncome) *
-        100;
-  }
-
   int _getAverageOrderPrice() {
     if (_currentPeriodOrders == 0) return 0;
     return (_currentPeriodIncome / _currentPeriodOrders).toInt();
@@ -182,29 +182,33 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    // 1. Income Summary Card
-                    _buildIncomeSummary(),
+                    // 1. Financial Summary (Combined Card)
+                    _buildFinancialSummary(),
                     const SizedBox(height: 20),
 
-                    // 2. Income Trend Chart
+                    // 2. Expense List + Add Button
+                    _buildExpenseSection(),
+                    const SizedBox(height: 20),
+
+                    // 3. Income Trend Chart
                     _buildIncomeTrend(),
                     const SizedBox(height: 20),
 
-                    // 3. Service Distribution Chart
+                    // 4. Service Distribution Chart
                     _buildServiceDistribution(),
                     const SizedBox(height: 20),
 
-                    // 4. Revenue by Service Type
-                    _buildRevenueByServiceType(),
-                    const SizedBox(height: 20),
-
-                    // 5. Top Customers
+                    // 6. Top Customers
                     _buildTopCustomers(),
                     const SizedBox(height: 20),
 
                     // 7. Pending Orders Alert
                     _buildPendingOrdersAlert(),
                     const SizedBox(height: 20),
+
+                    // 8. Download PDF (Single Button)
+                    _buildDownloadPdfButton(),
+                    const SizedBox(height: 25),
                   ],
                 ),
               ),
@@ -248,9 +252,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: GestureDetector(
         onTap: () {
           setState(() => selectedPeriod = value);
-          // Refresh listener saat period berubah
+          // Refresh listeners saat period berubah
           _incomeSubscription?.cancel();
           _setupIncomeListener();
+          _expenseSubscription?.cancel();
+          _setupExpenseListener();
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 15),
@@ -272,158 +278,324 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  // ===== 2. INCOME SUMMARY CARD =====
-  Widget _buildIncomeSummary() {
-    final growthPercent = _calculateGrowthPercentage();
-    final isPositiveGrowth = growthPercent >= 0;
-    final avgOrderPrice = _getAverageOrderPrice();
+  // ===== EXPENSE LISTENER =====
+  void _setupExpenseListener() {
+    try {
+      final now = DateTime.now();
+      late final DateTime currentStart;
+
+      if (selectedPeriod == 'week') {
+        currentStart = now.subtract(Duration(days: now.weekday - 1));
+      } else {
+        currentStart = DateTime(now.year, now.month, 1);
+      }
+
+      final currentStartOfDay =
+          DateTime(currentStart.year, currentStart.month, currentStart.day);
+
+      _expenseSubscription = _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('expenses')
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted) {
+          int totalExpense = 0;
+          List<Map<String, dynamic>> items = [];
+
+          for (var doc in snapshot.docs) {
+            final createdAt = doc['createdAt'] as Timestamp?;
+            final amount = doc['amount'] as int? ?? 0;
+
+            if (createdAt != null) {
+              final expenseDate = DateTime(
+                createdAt.toDate().year,
+                createdAt.toDate().month,
+                createdAt.toDate().day,
+              );
+
+              if (expenseDate.isAfter(currentStartOfDay) ||
+                  expenseDate.isAtSameMomentAs(currentStartOfDay)) {
+                totalExpense += amount;
+                items.add({
+                  'id': doc.id,
+                  'name': doc['name'] ?? '',
+                  'category': doc['category'] ?? '',
+                  'amount': amount,
+                  'createdAt': createdAt.toDate(),
+                  'note': doc['note'] ?? '',
+                });
+              }
+            }
+          }
+
+          // Sort terbaru dulu
+          items.sort((a, b) => (b['createdAt'] as DateTime)
+              .compareTo(a['createdAt'] as DateTime));
+
+          setState(() {
+            _currentPeriodExpense = totalExpense;
+            _expenseItems = items;
+          });
+        }
+      }, onError: (e) {
+        print('[EXPENSE] Error: $e');
+      });
+
+      print('[EXPENSE] ✅ Listener setup for $selectedPeriod');
+    } catch (e) {
+      print('[EXPENSE] ❌ Error setup listener: $e');
+    }
+  }
+
+  // ===== ADD EXPENSE TO FIRESTORE =====
+  Future<void> _addExpense({
+    required String name,
+    required String category,
+    required int amount,
+    String note = '',
+  }) async {
+    try {
+      await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('expenses')
+          .add({
+        'name': name,
+        'category': category,
+        'amount': amount,
+        'note': note,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pengeluaran berhasil ditambahkan'),
+            backgroundColor: Color(0xFF1F8F5F),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menambahkan pengeluaran: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // ===== DELETE EXPENSE =====
+  Future<void> _deleteExpense(String expenseId) async {
+    try {
+      await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('expenses')
+          .doc(expenseId)
+          .delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pengeluaran berhasil dihapus'),
+            backgroundColor: Color(0xFF1F8F5F),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menghapus: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // ===== COMBINED FINANCIAL SUMMARY CARD =====
+  Widget _buildFinancialSummary() {
+    final netProfit = _currentPeriodIncome - _currentPeriodExpense;
+    final isProfit = netProfit >= 0;
 
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           )
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ===== TOP ROW: Label + Trend Badge =====
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Total Pemasukan',
-                    style: sRegular.copyWith(color: Colors.grey[600]),
-                  ),
-                  Text(
-                    _getPeriodLabel(),
-                    style: sRegular.copyWith(
-                      color: Colors.grey[400],
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+          // ===== SISA BERSIH (HERO) =====
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isProfit
+                    ? [blue500.withOpacity(0.92), blue600.withOpacity(0.92)]
+                    : [const Color(0xFFDC2626), const Color(0xFFEF4444)],
               ),
-              // Trend badge
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isPositiveGrowth
-                      ? const Color(0xFF1F8F5F).withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      isPositiveGrowth
-                          ? Icons.trending_up_rounded
-                          : Icons.trending_down_rounded,
-                      color: isPositiveGrowth
-                          ? const Color(0xFF1F8F5F)
-                          : Colors.red,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
                     Text(
-                      '${growthPercent.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isPositiveGrowth
-                            ? const Color(0xFF1F8F5F)
-                            : Colors.red,
+                      isProfit ? 'Sisa Bersih' : 'Rugi Bersih',
+                      style: sRegular.copyWith(
+                        color: Colors.white.withOpacity(0.85),
+                      ),
+                    ),
+                    Text(
+                      _getPeriodLabel(),
+                      style: xsRegular.copyWith(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 11,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // ===== MAIN AMOUNT =====
-          Text(
-            _formatCurrency(_currentPeriodIncome),
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2F5FE3),
+                const SizedBox(height: 8),
+                Text(
+                  _formatCurrency(netProfit.abs()),
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
 
-          // ===== DIVIDER =====
-          Container(
-            height: 1,
-            color: Colors.grey[200],
+          // ===== PEMASUKAN & PENGELUARAN =====
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            child: Row(
+              children: [
+                // Pemasukan
+                Expanded(
+                  child: _summaryTile(
+                    label: 'Pemasukan',
+                    value: _formatCurrency(_currentPeriodIncome),
+                    icon: Icons.arrow_downward_rounded,
+                    color: const Color(0xFF2F5FE3),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Pengeluaran
+                Expanded(
+                  child: _summaryTile(
+                    label: 'Pengeluaran',
+                    value: _formatCurrency(_currentPeriodExpense),
+                    icon: Icons.arrow_upward_rounded,
+                    color: const Color(0xFFEF4444),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
 
-          // ===== BOTTOM ROW: Metrics =====
+          // ===== PESANAN & RATA-RATA =====
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FB),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.receipt_long_rounded,
+                    size: 16, color: Colors.grey[400]),
+                const SizedBox(width: 8),
+                Text(
+                  '$_currentPeriodOrders pesanan',
+                  style: smBold.copyWith(color: textPrimary, fontSize: 13),
+                ),
+                const Spacer(),
+                Container(
+                  width: 1,
+                  height: 16,
+                  color: Colors.grey[300],
+                ),
+                const Spacer(),
+                Icon(Icons.bar_chart_rounded,
+                    size: 16, color: Colors.grey[400]),
+                const SizedBox(width: 8),
+                Text(
+                  'Avg ${_formatCurrency(_getAverageOrderPrice())}',
+                  style: smBold.copyWith(color: textPrimary, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryTile({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
             children: [
-              // Orders count
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Pesanan',
-                      style: xsRegular.copyWith(
-                        color: Colors.grey[500],
-                        fontSize: 10,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$_currentPeriodOrders pesanan',
-                      style: smBold.copyWith(color: textPrimary),
-                    ),
-                  ],
-                ),
-              ),
-              // Divider
               Container(
-                width: 1,
-                height: 40,
-                color: Colors.grey[200],
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: color),
               ),
-              // Average order price
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Rata-rata',
-                        style: xsRegular.copyWith(
-                          color: Colors.grey[500],
-                          fontSize: 10,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _formatCurrency(avgOrderPrice),
-                        style: smBold.copyWith(color: textPrimary),
-                      ),
-                    ],
-                  ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: xsRegular.copyWith(
+                  color: Colors.grey[600],
+                  fontSize: 12,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -1010,6 +1182,544 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  // ===== EXPENSE SECTION (List + Add Button) =====
+  Widget _buildExpenseSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Pengeluaran', style: mBold),
+            if (selectedPeriod == 'week')
+              GestureDetector(
+                onTap: () => _showAddExpenseDialog(),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2F5FE3),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.add_rounded,
+                          color: Colors.white, size: 18),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Tambah',
+                        style:
+                            smBold.copyWith(color: Colors.white, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_expenseItems.isEmpty)
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 80),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                child: Column(
+                  children: [
+                    Icon(Icons.receipt_long_rounded,
+                        color: Colors.grey[500], size: 35),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Belum ada pengeluaran',
+                      style: xsRegular.copyWith(color: Colors.grey[400]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _expenseItems.length,
+              separatorBuilder: (_, __) =>
+                  Divider(height: 1, color: Colors.grey[200]),
+              itemBuilder: (context, index) {
+                final item = _expenseItems[index];
+                final date = item['createdAt'] as DateTime;
+                final formattedDate =
+                    DateFormat('dd MMM yyyy', 'id_ID').format(date);
+
+                return Dismissible(
+                  key: Key(item['id']),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: index == 0 && _expenseItems.length == 1
+                          ? BorderRadius.circular(14)
+                          : index == 0
+                              ? const BorderRadius.only(
+                                  topLeft: Radius.circular(14),
+                                  topRight: Radius.circular(14),
+                                )
+                              : index == _expenseItems.length - 1
+                                  ? const BorderRadius.only(
+                                      bottomLeft: Radius.circular(14),
+                                      bottomRight: Radius.circular(14),
+                                    )
+                                  : BorderRadius.zero,
+                    ),
+                    child:
+                        const Icon(Icons.delete_rounded, color: Colors.white),
+                  ),
+                  confirmDismiss: (_) async {
+                    return await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Hapus Pengeluaran'),
+                        content: Text(
+                            'Hapus "${item['name']}" (${_formatCurrency(item['amount'])})?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Batal'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Hapus',
+                                style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  onDismissed: (_) => _deleteExpense(item['id']),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      children: [
+                        // Category icon
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            _getCategoryIcon(item['category']),
+                            color: const Color(0xFFEF4444),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Name & category
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item['name'],
+                                style: smBold.copyWith(color: textPrimary),
+                              ),
+                              Text(
+                                '${item['category']} • $formattedDate',
+                                style:
+                                    xsRegular.copyWith(color: Colors.grey[500]),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Amount
+                        Text(
+                          '- ${_formatCurrency(item['amount'])}',
+                          style:
+                              smBold.copyWith(color: const Color(0xFFEF4444)),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'detergen':
+        return Icons.local_laundry_service_rounded;
+      case 'listrik':
+        return Icons.bolt_rounded;
+      case 'air':
+        return Icons.water_drop_rounded;
+      case 'gaji':
+        return Icons.people_rounded;
+      case 'sewa':
+        return Icons.home_rounded;
+      case 'transportasi':
+        return Icons.local_shipping_rounded;
+      case 'peralatan':
+        return Icons.build_rounded;
+      default:
+        return Icons.receipt_long_rounded;
+    }
+  }
+
+  // ===== ADD EXPENSE DIALOG =====
+  void _showAddExpenseDialog() {
+    final nameController = TextEditingController();
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    String selectedCategory = 'Detergen';
+
+    final categories = [
+      'Detergen',
+      'Listrik',
+      'Air',
+      'Gaji',
+      'Sewa',
+      'Transportasi',
+      'Peralatan',
+      'Lainnya',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          return Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text('Tambah Pengeluaran', style: mBold),
+                  const SizedBox(height: 20),
+
+                  // Nama pengeluaran
+                  Text('Nama', style: smBold.copyWith(color: textPrimary)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      hintText: 'Contoh: Detergen Bubuk 5kg',
+                      hintStyle: sRegular.copyWith(color: Colors.grey[400]),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: gray200),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: gray200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF2F5FE3)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Kategori
+                  Text('Kategori', style: smBold.copyWith(color: textPrimary)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: categories.map((cat) {
+                      final isSelected = selectedCategory == cat;
+                      return GestureDetector(
+                        onTap: () {
+                          setModalState(() => selectedCategory = cat);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF2F5FE3).withOpacity(0.1)
+                                : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF2F5FE3)
+                                  : gray200,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _getCategoryIcon(cat),
+                                size: 16,
+                                color: isSelected
+                                    ? const Color(0xFF2F5FE3)
+                                    : Colors.grey[600],
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                cat,
+                                style: xsRegular.copyWith(
+                                  color: isSelected
+                                      ? const Color(0xFF2F5FE3)
+                                      : Colors.grey[600],
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Jumlah
+                  Text('Jumlah (Rp)',
+                      style: smBold.copyWith(color: textPrimary)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'Contoh: 150000',
+                      hintStyle: sRegular.copyWith(color: Colors.grey[400]),
+                      prefixText: 'Rp ',
+                      prefixStyle: smBold.copyWith(color: textPrimary),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: gray200),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: gray200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF2F5FE3)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Catatan (optional)
+                  Text('Catatan (opsional)',
+                      style: smBold.copyWith(color: textPrimary)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: noteController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      hintText: 'Catatan tambahan...',
+                      hintStyle: sRegular.copyWith(color: Colors.grey[400]),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: gray200),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: gray200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF2F5FE3)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Save button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final name = nameController.text.trim();
+                        final amountText = amountController.text.trim();
+                        if (name.isEmpty || amountText.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Nama dan jumlah harus diisi'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        final amount = int.tryParse(amountText) ?? 0;
+                        if (amount <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Jumlah harus lebih dari 0'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.pop(ctx);
+                        _addExpense(
+                          name: name,
+                          category: selectedCategory,
+                          amount: amount,
+                          note: noteController.text.trim(),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2F5FE3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'Simpan Pengeluaran',
+                        style:
+                            smBold.copyWith(color: Colors.white, fontSize: 15),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ===== SINGLE DOWNLOAD PDF BUTTON =====
+  Widget _buildDownloadPdfButton() {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Download Laporan Keuangan PDF — Coming soon'),
+              backgroundColor: Color(0xFF2F5FE3),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              )
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2F5FE3).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.picture_as_pdf_rounded,
+                  color: Color(0xFF2F5FE3),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Download Laporan Keuangan',
+                    style: smBold.copyWith(color: textPrimary, fontSize: 14),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Pemasukan, pengeluaran & laba bersih',
+                    style: xsRegular.copyWith(color: Colors.grey[500]),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

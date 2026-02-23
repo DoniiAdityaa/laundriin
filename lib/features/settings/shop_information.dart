@@ -33,10 +33,16 @@ class _ShopInformationState extends State<ShopInformation> {
       final doc = await _firestore.collection('users').doc(_userId).get();
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!['shopInfo'] ?? {};
+        // Hapus 0 di depan saat load untuk display (karena prefix +62 sudah ada)
+        String whatsapp = data['whatsapp'] ?? '';
+        if (whatsapp.startsWith('0')) {
+          whatsapp = whatsapp.substring(1);
+        }
+
         setState(() {
           _shopNameC.text = data['shopName'] ?? '';
           _ownerNameC.text = data['ownerName'] ?? '';
-          _whatsappC.text = data['whatsapp'] ?? '';
+          _whatsappC.text = whatsapp;
           _addressC.text = data['address'] ?? '';
         });
         print('[LOAD] Shop information loaded');
@@ -49,12 +55,18 @@ class _ShopInformationState extends State<ShopInformation> {
   Future<void> _saveShopData() async {
     setState(() => _isLoading = true);
     try {
+      // Tambahkan 0 di depan saat simpan ke database (format lokal)
+      String whatsapp = _whatsappC.text.trim();
+      if (whatsapp.isNotEmpty && !whatsapp.startsWith('0')) {
+        whatsapp = '0$whatsapp';
+      }
+
       await _firestore.collection('users').doc(_userId).set(
         {
           'shopInfo': {
             'shopName': _shopNameC.text.trim(),
             'ownerName': _ownerNameC.text.trim(),
-            'whatsapp': _whatsappC.text.trim(),
+            'whatsapp': whatsapp,
             'address': _addressC.text.trim(),
             'updatedAt': FieldValue.serverTimestamp(),
           },
@@ -317,11 +329,21 @@ class _ShopInformationState extends State<ShopInformation> {
         TextField(
           controller: _whatsappC,
           keyboardType: TextInputType.phone,
-          style: smBold.copyWith(color: textPrimary),
+          style: sRegular.copyWith(color: textPrimary),
+          onChanged: (value) {
+            // Hapus 0 di depan otomatis karena prefix sudah +62
+            if (value.startsWith('0')) {
+              _whatsappC.text = value.substring(1);
+              _whatsappC.selection = TextSelection.fromPosition(
+                TextPosition(offset: _whatsappC.text.length),
+              );
+            }
+          },
           decoration: InputDecoration(
-            hintText: "081xxxx",
+            hintText: "8xxxx",
             hintStyle: sRegular.copyWith(color: textMuted),
             prefixText: "+62 ",
+            prefixStyle: smBold.copyWith(color: textPrimary),
             filled: true,
             fillColor: bgInput,
             contentPadding: const EdgeInsets.symmetric(

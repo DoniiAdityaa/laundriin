@@ -156,12 +156,23 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
     final total = _serviceCount.values.fold<int>(0, (a, b) => a + b);
 
     if (total == 0) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Text(
-            'Belum ada data layanan',
-            style: sRegular.copyWith(color: Colors.grey[500]),
+      return AspectRatio(
+        aspectRatio: 1.3,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.pie_chart_rounded,
+                    size: 35, color: Colors.grey[500]),
+                const SizedBox(height: 8),
+                Text(
+                  'Belum ada data layanan',
+                  style: sRegular.copyWith(color: Colors.grey[500]),
+                ),
+              ],
+            ),
           ),
         ),
       );

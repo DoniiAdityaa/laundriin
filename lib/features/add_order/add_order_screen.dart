@@ -139,9 +139,15 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   }
 
   void _selectCustomer(Map<String, dynamic> customer) {
+    // Hapus 0 di depan saat load untuk display (karena prefix +62 sudah ada)
+    String phone = customer['phone'] ?? '';
+    if (phone.startsWith('0')) {
+      phone = phone.substring(1);
+    }
+
     setState(() {
       _nameC.text = customer['name'] ?? '';
-      _phoneC.text = customer['phone'] ?? '';
+      _phoneC.text = phone;
       _selectedGender = customer['gender'] ?? 'Laki-laki';
       _selectedCustomerId = customer['id'];
       _showSuggestions = false;
@@ -327,7 +333,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           .doc(customerId)
           .set({
         'name': _nameC.text.trim(),
-        'phone': _phoneC.text.trim(),
+        'phone': _phoneC.text.trim().startsWith('0')
+            ? _phoneC.text.trim()
+            : '0${_phoneC.text.trim()}',
         'gender': _selectedGender,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -481,7 +489,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         'orderId': orderId,
         'customerId': _selectedCustomerId,
         'customerName': _nameC.text.trim(),
-        'customerPhone': _phoneC.text.trim(),
+        'customerPhone': _phoneC.text.trim().startsWith('0')
+            ? _phoneC.text.trim()
+            : '0${_phoneC.text.trim()}',
         'customerGender': _selectedGender,
         'category': _selectedCategory.toLowerCase(),
         'serviceType': _selectedServiceType,
@@ -874,7 +884,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   TextField(
                     controller: _nameC,
                     textCapitalization: TextCapitalization.words,
-                    style: smBold.copyWith(color: textPrimary),
+                    style: smRegular.copyWith(color: textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Nama Pelanggan Anda',
                       hintStyle: sRegular.copyWith(color: textMuted),
@@ -1030,9 +1040,18 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
               TextField(
                 controller: _phoneC,
                 keyboardType: TextInputType.phone,
-                style: smBold.copyWith(color: textPrimary),
+                style: smRegular.copyWith(color: textPrimary),
+                onChanged: (value) {
+                  // Hapus 0 di depan otomatis karena prefix sudah +62
+                  if (value.startsWith('0')) {
+                    _phoneC.text = value.substring(1);
+                    _phoneC.selection = TextSelection.fromPosition(
+                      TextPosition(offset: _phoneC.text.length),
+                    );
+                  }
+                },
                 decoration: InputDecoration(
-                  hintText: '081xxxx',
+                  hintText: '8xxxx',
                   hintStyle: sRegular.copyWith(color: textMuted),
                   filled: true,
                   fillColor: bgInput,
@@ -1041,6 +1060,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                     vertical: 14,
                   ),
                   prefixText: '+62 ',
+                  prefixStyle: smBold.copyWith(color: textPrimary),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(color: borderLight),
