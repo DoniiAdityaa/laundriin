@@ -16,7 +16,8 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  String selectedPeriod = 'week'; // week or month
+  String selectedPeriod = 'day'; // day or week or month
+  DateTime _selectedDate = DateTime.now();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -54,33 +55,47 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   void _setupIncomeListener() {
     try {
-      final now = DateTime.now();
-      late final DateTime currentStart, currentEnd, previousStart, previousEnd;
+      final ref = _selectedDate;
+      late final DateTime currentStart, previousStart;
 
-      if (selectedPeriod == 'week') {
-        // Current week (Monday to today)
-        currentStart = now.subtract(Duration(days: now.weekday - 1));
-        currentEnd = now;
+      if (selectedPeriod == 'day') {
+        // Hari yang dipilih
+        currentStart = DateTime(ref.year, ref.month, ref.day);
+        // Hari sebelumnya
+        final yesterday = currentStart.subtract(const Duration(days: 1));
+        previousStart =
+            DateTime(yesterday.year, yesterday.month, yesterday.day);
+      } else if (selectedPeriod == 'week') {
+        // Awal minggu yang dipilih (Senin)
+        final weekStart = ref.subtract(Duration(days: ref.weekday - 1));
+        currentStart = DateTime(weekStart.year, weekStart.month, weekStart.day);
 
-        // Previous week
+        // Minggu sebelumnya
         previousStart = currentStart.subtract(const Duration(days: 7));
-        previousEnd = previousStart.add(const Duration(days: 6));
       } else {
-        // Current month
-        currentStart = DateTime(now.year, now.month, 1);
-        currentEnd = now;
+        // Bulan yang dipilih
+        currentStart = DateTime(ref.year, ref.month, 1);
 
-        // Previous month
+        // Bulan sebelumnya
         final prevMonth = currentStart.subtract(const Duration(days: 1));
         previousStart = DateTime(prevMonth.year, prevMonth.month, 1);
-        previousEnd = DateTime(prevMonth.year, prevMonth.month + 1, 1)
-            .subtract(const Duration(days: 1));
       }
 
       final currentStartOfDay =
           DateTime(currentStart.year, currentStart.month, currentStart.day);
       final previousStartOfDay =
           DateTime(previousStart.year, previousStart.month, previousStart.day);
+
+      // Tentukan batas akhir periode
+      late final DateTime currentEndOfDay;
+      if (selectedPeriod == 'day') {
+        currentEndOfDay = currentStartOfDay.add(const Duration(days: 1));
+      } else if (selectedPeriod == 'week') {
+        currentEndOfDay = currentStartOfDay.add(const Duration(days: 7));
+      } else {
+        currentEndOfDay =
+            DateTime(currentStartOfDay.year, currentStartOfDay.month + 1, 1);
+      }
 
       _incomeSubscription = _firestore
           .collection('shops')
@@ -90,7 +105,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
           .snapshots()
           .listen((snapshot) {
         if (mounted) {
-          _calculateIncome(snapshot, currentStartOfDay, previousStartOfDay);
+          _calculateIncome(
+              snapshot, currentStartOfDay, previousStartOfDay, currentEndOfDay);
         }
       }, onError: (e) {
         print('[INCOME] Error: $e');
@@ -102,8 +118,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  void _calculateIncome(
-      QuerySnapshot snapshot, DateTime currentStart, DateTime previousStart) {
+  void _calculateIncome(QuerySnapshot snapshot, DateTime currentStart,
+      DateTime previousStart, DateTime currentEnd) {
     int currentIncome = 0;
     int previousIncome = 0;
     int currentOrders = 0;
@@ -119,12 +135,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
           createdAt.toDate().day,
         );
 
-        if (orderDate.isAfter(currentStart) ||
-            orderDate.isAtSameMomentAs(currentStart)) {
+        if ((orderDate.isAfter(currentStart) ||
+                orderDate.isAtSameMomentAs(currentStart)) &&
+            orderDate.isBefore(currentEnd)) {
           currentIncome += totalPrice;
           currentOrders++;
-        } else if (orderDate.isAfter(previousStart) ||
-            orderDate.isAtSameMomentAs(previousStart)) {
+        } else if ((orderDate.isAfter(previousStart) ||
+                orderDate.isAtSameMomentAs(previousStart)) &&
+            orderDate.isBefore(currentStart)) {
           previousIncome += totalPrice;
         }
       }
@@ -172,6 +190,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     const SizedBox(height: 16),
                     // ===== PERIOD FILTER =====
                     _buildPeriodFilter(),
+                    const SizedBox(height: 12),
+                    // ===== PERIOD NAVIGATION =====
+                    _buildPeriodNavigation(),
                   ],
                 ),
               ),
@@ -190,23 +211,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     _buildExpenseSection(),
                     const SizedBox(height: 20),
 
-                    // 3. Income Trend Chart
-                    _buildIncomeTrend(),
-                    const SizedBox(height: 20),
+                    // 3. Income Trend Chart (hide for daily)
+                    if (selectedPeriod != 'day') ...[
+                      _buildIncomeTrend(),
+                      const SizedBox(height: 20),
+                    ],
 
                     // 4. Service Distribution Chart
                     _buildServiceDistribution(),
                     const SizedBox(height: 20),
 
-                    // 6. Top Customers
-                    _buildTopCustomers(),
-                    const SizedBox(height: 20),
+                    // 5. Top Customers (hide for daily)
+                    if (selectedPeriod != 'day') ...[
+                      _buildTopCustomers(),
+                      const SizedBox(height: 20),
+                    ],
 
-                    // 7. Pending Orders Alert
+                    // 6. Pending Orders Alert
                     _buildPendingOrdersAlert(),
                     const SizedBox(height: 20),
 
-                    // 8. Download PDF (Single Button)
+                    // 7. Download PDF (Single Button)
                     _buildDownloadPdfButton(),
                     const SizedBox(height: 25),
                   ],
@@ -239,6 +264,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ),
       child: Row(
         children: [
+          _buildPeriodButton('Hari', 'day'),
           _buildPeriodButton('Minggu', 'week'),
           _buildPeriodButton('Bulan', 'month'),
         ],
@@ -251,7 +277,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          setState(() => selectedPeriod = value);
+          setState(() {
+            selectedPeriod = value;
+            _selectedDate = DateTime.now(); // Reset ke hari ini saat ganti mode
+          });
           // Refresh listeners saat period berubah
           _incomeSubscription?.cancel();
           _setupIncomeListener();
@@ -278,16 +307,205 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
+  // ===== PERIOD NAVIGATION =====
+  Widget _buildPeriodNavigation() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selected =
+        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+
+    // Cek apakah sudah di periode terkini (disable tombol →)
+    bool isAtCurrent;
+    if (selectedPeriod == 'day') {
+      isAtCurrent = selected.isAtSameMomentAs(today);
+    } else if (selectedPeriod == 'week') {
+      final currentWeekStart =
+          today.subtract(Duration(days: today.weekday - 1));
+      final selectedWeekStart =
+          selected.subtract(Duration(days: selected.weekday - 1));
+      isAtCurrent = selectedWeekStart.isAtSameMomentAs(currentWeekStart);
+    } else {
+      isAtCurrent =
+          selected.year == today.year && selected.month == today.month;
+    }
+
+    return Row(
+      children: [
+        // Tombol ←
+        _navArrowButton(
+          icon: Icons.chevron_left_rounded,
+          onTap: () => _navigatePeriod(-1),
+        ),
+        // Label (tap untuk buka DatePicker)
+        Expanded(
+          child: GestureDetector(
+            onTap: _openDatePicker,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              alignment: Alignment.center,
+              child: Text(
+                _getNavigationLabel(),
+                style: smSemiBold.copyWith(
+                  color: textPrimary,
+                  fontSize: 13.5,
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Tombol →
+        _navArrowButton(
+          icon: Icons.chevron_right_rounded,
+          onTap: isAtCurrent ? null : () => _navigatePeriod(1),
+          disabled: isAtCurrent,
+        ),
+      ],
+    );
+  }
+
+  Widget _navArrowButton({
+    required IconData icon,
+    VoidCallback? onTap,
+    bool disabled = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: disabled ? Colors.grey[100] : white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: disabled ? Colors.grey[200]! : gray200),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: disabled ? Colors.grey[300] : Colors.grey[700],
+        ),
+      ),
+    );
+  }
+
+  void _navigatePeriod(int direction) {
+    setState(() {
+      if (selectedPeriod == 'day') {
+        _selectedDate = _selectedDate.add(Duration(days: direction));
+      } else if (selectedPeriod == 'week') {
+        _selectedDate = _selectedDate.add(Duration(days: 7 * direction));
+      } else {
+        _selectedDate = DateTime(
+          _selectedDate.year,
+          _selectedDate.month + direction,
+          1,
+        );
+      }
+    });
+    // Refresh listeners
+    _incomeSubscription?.cancel();
+    _setupIncomeListener();
+    _expenseSubscription?.cancel();
+    _setupExpenseListener();
+  }
+
+  Future<void> _openDatePicker() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      locale: const Locale('id', 'ID'),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: blue500,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+      _incomeSubscription?.cancel();
+      _setupIncomeListener();
+      _expenseSubscription?.cancel();
+      _setupExpenseListener();
+    }
+  }
+
+  String _getNavigationLabel() {
+    final d = _selectedDate;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selected = DateTime(d.year, d.month, d.day);
+
+    switch (selectedPeriod) {
+      case 'day':
+        if (selected.isAtSameMomentAs(today)) {
+          return 'Hari ini, ${d.day} ${_getMonthName(d.month)} ${d.year}';
+        }
+        final yesterday = today.subtract(const Duration(days: 1));
+        if (selected.isAtSameMomentAs(yesterday)) {
+          return 'Kemarin, ${d.day} ${_getMonthName(d.month)} ${d.year}';
+        }
+        // Nama hari
+        const dayNames = [
+          'Senin',
+          'Selasa',
+          'Rabu',
+          'Kamis',
+          'Jumat',
+          'Sabtu',
+          'Minggu'
+        ];
+        return '${dayNames[d.weekday - 1]}, ${d.day} ${_getMonthName(d.month)} ${d.year}';
+
+      case 'week':
+        final weekStart = d.subtract(Duration(days: d.weekday - 1));
+        final weekEnd = weekStart.add(const Duration(days: 6));
+        final currentWeekStart =
+            today.subtract(Duration(days: today.weekday - 1));
+        final prefix = weekStart.isAtSameMomentAs(currentWeekStart)
+            ? 'Minggu ini'
+            : 'Minggu';
+        if (weekStart.month == weekEnd.month) {
+          return '$prefix, ${weekStart.day}-${weekEnd.day} ${_getMonthName(weekEnd.month)}';
+        }
+        return '$prefix, ${weekStart.day} ${_getMonthName(weekStart.month)} - ${weekEnd.day} ${_getMonthName(weekEnd.month)}';
+
+      case 'month':
+      default:
+        final isCurrentMonth = d.year == today.year && d.month == today.month;
+        final prefix = isCurrentMonth ? 'Bulan ini' : '';
+        final label = '${_getMonthName(d.month)} ${d.year}';
+        return isCurrentMonth ? '$prefix, $label' : label;
+    }
+  }
+
   // ===== EXPENSE LISTENER =====
   void _setupExpenseListener() {
     try {
-      final now = DateTime.now();
+      final ref = _selectedDate;
       late final DateTime currentStart;
+      late final DateTime currentEnd;
 
-      if (selectedPeriod == 'week') {
-        currentStart = now.subtract(Duration(days: now.weekday - 1));
+      if (selectedPeriod == 'day') {
+        currentStart = DateTime(ref.year, ref.month, ref.day);
+        currentEnd = currentStart.add(const Duration(days: 1));
+      } else if (selectedPeriod == 'week') {
+        currentStart = DateTime(ref.year, ref.month, ref.day)
+            .subtract(Duration(days: ref.weekday - 1));
+        currentEnd = currentStart.add(const Duration(days: 7));
       } else {
-        currentStart = DateTime(now.year, now.month, 1);
+        currentStart = DateTime(ref.year, ref.month, 1);
+        currentEnd = DateTime(ref.year, ref.month + 1, 1);
       }
 
       final currentStartOfDay =
@@ -314,8 +532,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 createdAt.toDate().day,
               );
 
-              if (expenseDate.isAfter(currentStartOfDay) ||
-                  expenseDate.isAtSameMomentAs(currentStartOfDay)) {
+              if ((expenseDate.isAfter(currentStartOfDay) ||
+                      expenseDate.isAtSameMomentAs(currentStartOfDay)) &&
+                  expenseDate.isBefore(currentEnd)) {
                 totalExpense += amount;
                 items.add({
                   'id': doc.id,
@@ -409,6 +628,47 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal menghapus: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // ===== UPDATE EXPENSE =====
+  Future<void> _updateExpense({
+    required String expenseId,
+    required String name,
+    required String category,
+    required int amount,
+    String note = '',
+  }) async {
+    try {
+      await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('expenses')
+          .doc(expenseId)
+          .update({
+        'name': name,
+        'category': category,
+        'amount': amount,
+        'note': note,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pengeluaran berhasil diperbarui'),
+            backgroundColor: Color(0xFF1F8F5F),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -644,7 +904,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
               )
             ],
           ),
-          child: IncomeTrendChart(period: selectedPeriod),
+          child: IncomeTrendChart(
+              period: selectedPeriod, referenceDate: _selectedDate),
         ),
       ],
     );
@@ -673,7 +934,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ],
           ),
           padding: const EdgeInsets.all(16),
-          child: ServiceDistributionChart(period: selectedPeriod),
+          child: ServiceDistributionChart(
+              period: selectedPeriod, referenceDate: _selectedDate),
         ),
       ],
     );
@@ -806,7 +1068,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Pelanggan Terbaik',
+          'Pelanggan Terbanyak',
           style: mBold,
         ),
         const SizedBox(height: 12),
@@ -1194,14 +1456,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Pengeluaran', style: mBold),
-            if (selectedPeriod == 'week')
+            if (selectedPeriod == 'week' || selectedPeriod == 'day')
               GestureDetector(
                 onTap: () => _showAddExpenseDialog(),
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2F5FE3),
+                    color: blue500,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
@@ -1306,68 +1568,130 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   confirmDismiss: (_) async {
                     return await showDialog<bool>(
                       context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Hapus Pengeluaran'),
-                        content: Text(
-                            'Hapus "${item['name']}" (${_formatCurrency(item['amount'])})?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Batal'),
+                      barrierDismissible: true,
+                      builder: (ctx) => Dialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                          decoration: BoxDecoration(
+                            color: white,
+                            borderRadius: BorderRadius.circular(24),
                           ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Hapus',
-                                style: TextStyle(color: Colors.red)),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Hapus Pengeluaran', style: mBold),
+                              const SizedBox(height: 12),
+                              Text(
+                                  'Hapus ${item['name']} ${_formatCurrency(item['amount'])}?',
+                                  textAlign: TextAlign.center,
+                                  style: sRegular.copyWith(color: textPrimary)),
+                              const SizedBox(height: 24),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  Expanded(
+                                      child: ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFFF3F4F6),
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 14),
+                                          ),
+                                          child: Text(
+                                            'Tidak',
+                                            style: smMedium.copyWith(
+                                                color: iconButtonOutlined),
+                                          ))),
+                                  const SizedBox(width: 15),
+                                  Expanded(
+                                      child: ElevatedButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                    ),
+                                    child: Text('Hapus',
+                                        style: smMedium.copyWith(
+                                            color: Colors.white)),
+                                  )),
+                                ],
+                              )
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     );
                   },
                   onDismissed: (_) => _deleteExpense(item['id']),
                   child: Padding(
                     padding: const EdgeInsets.all(14),
-                    child: Row(
-                      children: [
-                        // Category icon
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEF4444).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      onTap: () => _showAddExpenseDialog(expense: item),
+                      child: Row(
+                        children: [
+                          // Category icon
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              _getCategoryIcon(item['category']),
+                              color: const Color(0xFFEF4444),
+                              size: 20,
+                            ),
                           ),
-                          child: Icon(
-                            _getCategoryIcon(item['category']),
-                            color: const Color(0xFFEF4444),
-                            size: 20,
+                          const SizedBox(width: 12),
+                          // Name & category
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item['name'],
+                                  style: smBold.copyWith(color: textPrimary),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${item['category']} • $formattedDate',
+                                  style: xsRegular.copyWith(
+                                      color: Colors.grey[500]),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  item['note'] ?? '',
+                                  style: xsRegular.copyWith(
+                                      color: Colors.grey[400], fontSize: 11),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Name & category
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item['name'],
-                                style: smBold.copyWith(color: textPrimary),
-                              ),
-                              Text(
-                                '${item['category']} • $formattedDate',
-                                style:
-                                    xsRegular.copyWith(color: Colors.grey[500]),
-                              ),
-                            ],
+                          // Amount
+                          Text(
+                            '- ${_formatCurrency(item['amount'])}',
+                            style:
+                                smBold.copyWith(color: const Color(0xFFEF4444)),
                           ),
-                        ),
-                        // Amount
-                        Text(
-                          '- ${_formatCurrency(item['amount'])}',
-                          style:
-                              smBold.copyWith(color: const Color(0xFFEF4444)),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -1400,11 +1724,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   // ===== ADD EXPENSE DIALOG =====
-  void _showAddExpenseDialog() {
-    final nameController = TextEditingController();
-    final amountController = TextEditingController();
-    final noteController = TextEditingController();
-    String selectedCategory = 'Detergen';
+  void _showAddExpenseDialog({Map<String, dynamic>? expense}) {
+    final nameController = TextEditingController(text: expense?['name'] ?? '');
+    final amountController = TextEditingController(
+        text: expense != null ? expense['amount'].toString() : '');
+    final noteController = TextEditingController(text: expense?['note'] ?? '');
+    String selectedCategory = expense?['category'] ?? 'Detergen';
+    final bool isEdit = expense != null;
 
     final categories = [
       'Detergen',
@@ -1449,7 +1775,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Tambah Pengeluaran', style: mBold),
+                  Text(
+                    isEdit ? 'Edit Pengeluaran' : 'Tambah Pengeluaran',
+                    style: mBold,
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 20),
 
                   // Nama pengeluaran
@@ -1458,7 +1788,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   TextField(
                     controller: nameController,
                     decoration: InputDecoration(
-                      hintText: 'Contoh: Detergen Bubuk 5kg',
+                      hintText: 'Listrik',
                       hintStyle: sRegular.copyWith(color: Colors.grey[400]),
                       filled: true,
                       fillColor: Colors.grey[50],
@@ -1606,6 +1936,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       onPressed: () {
                         final name = nameController.text.trim();
                         final amountText = amountController.text.trim();
+
                         if (name.isEmpty || amountText.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -1615,33 +1946,38 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           );
                           return;
                         }
+
                         final amount = int.tryParse(amountText) ?? 0;
-                        if (amount <= 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Jumlah harus lebih dari 0'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                          return;
-                        }
+                        if (amount <= 0) return;
+
                         Navigator.pop(ctx);
-                        _addExpense(
-                          name: name,
-                          category: selectedCategory,
-                          amount: amount,
-                          note: noteController.text.trim(),
-                        );
+
+                        if (isEdit) {
+                          _updateExpense(
+                            expenseId: expense['id'],
+                            name: name,
+                            category: selectedCategory,
+                            amount: amount,
+                            note: noteController.text.trim(),
+                          );
+                        } else {
+                          _addExpense(
+                            name: name,
+                            category: selectedCategory,
+                            amount: amount,
+                            note: noteController.text.trim(),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2F5FE3),
+                        backgroundColor: blue500,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                         elevation: 0,
                       ),
                       child: Text(
-                        'Simpan Pengeluaran',
+                        isEdit ? 'Perbarui Pengeluaran' : 'Simpan Pengeluaran',
                         style:
                             smBold.copyWith(color: Colors.white, fontSize: 15),
                       ),
@@ -1725,14 +2061,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   // ===== HELPER FUNCTION =====
   String _getPeriodLabel() {
-    final now = DateTime.now();
+    final d = _selectedDate;
     switch (selectedPeriod) {
+      case 'day':
+        return '${d.day} ${_getMonthName(d.month)} ${d.year}';
       case 'week':
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-        return 'Minggu ini (${startOfWeek.day} - ${now.day} ${_getMonthName(now.month)})';
+        final startOfWeek = d.subtract(Duration(days: d.weekday - 1));
+        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        return '${startOfWeek.day} - ${endOfWeek.day} ${_getMonthName(endOfWeek.month)}';
       case 'month':
       default:
-        return '${_getMonthName(now.month)} ${now.year}';
+        return '${_getMonthName(d.month)} ${d.year}';
     }
   }
 

@@ -31,6 +31,9 @@ dependencies:
   flutter:
     sdk: flutter
 
+  flutter_localizations:
+    sdk: flutter
+
    # UI
   flutter_svg: ^2.0.10+1
   dotted_border: ^2.1.0

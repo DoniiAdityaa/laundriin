@@ -433,10 +433,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Center(
-                          child: Image.asset(
-                            'assets/images/bust_in_silhouette.png',
+                          child: SvgPicture.asset(
+                            'assets/svg/user.svg',
                             width: 22,
                             height: 22,
+                            color: blue500,
                           ),
                         ),
                       ),
@@ -494,30 +495,30 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               child: Column(
                 children: [
                   _infoRow(
-                    icon: 'assets/images/basket.png',
+                    icon: 'assets/svg/basket.svg',
                     title: 'Kategori',
                     value: categoryLabel,
                   ),
                   _infoRow(
-                    icon: 'assets/images/zap-2.png',
+                    icon: 'assets/svg/speed.svg',
                     title: 'Kecepatan',
                     value: speedLabel,
                   ),
                   if (weight > 0)
                     _infoRow(
-                      icon: 'assets/images/package.png',
+                      icon: 'assets/svg/box.svg',
                       title: 'Berat',
                       value: '$weight kg',
                     ),
                   if (items.isNotEmpty)
                     _infoRow(
-                      icon: 'assets/images/package.png',
+                      icon: 'assets/svg/box.svg',
                       title: 'Item',
                       value: '${items.length} buah',
                     ),
                   if (notes.isNotEmpty)
                     _infoRow(
-                      icon: 'assets/images/spiral_note_pad-2.png',
+                      icon: 'assets/svg/notes.svg',
                       title: 'Catatan',
                       value: notes,
                     ),
@@ -715,7 +716,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           Container(
             width: 22,
             height: 22,
-            child: Image.asset(icon),
+            child: SvgPicture.asset(icon, color: iconButtonOutlined),
           ),
           const SizedBox(width: 12),
           Expanded(

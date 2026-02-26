@@ -6,10 +6,12 @@ import 'dart:async';
 
 class IncomeTrendChart extends StatefulWidget {
   final String period; // 'week' or 'month'
+  final DateTime referenceDate;
 
   const IncomeTrendChart({
     super.key,
     required this.period,
+    required this.referenceDate,
   });
 
   @override
@@ -37,8 +39,9 @@ class _IncomeTrendChartState extends State<IncomeTrendChart> {
   @override
   void didUpdateWidget(IncomeTrendChart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.period != widget.period) {
-      // Period changed, refresh listener
+    if (oldWidget.period != widget.period ||
+        oldWidget.referenceDate != widget.referenceDate) {
+      // Period or date changed, refresh listener
       _ordersSubscription?.cancel();
       _setupRealtimeListener();
     }
@@ -52,15 +55,16 @@ class _IncomeTrendChartState extends State<IncomeTrendChart> {
 
   void _setupRealtimeListener() {
     try {
-      final now = DateTime.now();
+      final ref = widget.referenceDate;
       late final DateTime startDate;
 
       if (widget.period == 'week') {
-        // Start of this week (Monday)
-        startDate = now.subtract(Duration(days: now.weekday - 1));
+        // Awal minggu yang dipilih (Senin)
+        startDate = DateTime(ref.year, ref.month, ref.day)
+            .subtract(Duration(days: ref.weekday - 1));
       } else {
-        // Start of this month
-        startDate = DateTime(now.year, now.month, 1);
+        // Awal bulan yang dipilih
+        startDate = DateTime(ref.year, ref.month, 1);
       }
 
       final startOfDay =

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/utility/app_dialogs.dart';
@@ -53,6 +54,10 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
   // Track shop settings loading
   bool _shopSettingsLoaded = false;
+
+  // Prevent duplicate orders
+  String? _pendingOrderId; // Reuse same orderId on retry
+  bool _isCreatingOrder = false; // Prevent double-tap
 
   @override
   void initState() {
@@ -433,6 +438,13 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   Future<void> _createOrder() async {
     if (!mounted) return;
 
+    // Prevent double-tap / multiple simultaneous submissions
+    if (_isCreatingOrder) {
+      print('[CREATE ORDER] ⚠️ Already creating order, ignoring tap');
+      return;
+    }
+    _isCreatingOrder = true;
+
     AppLoading.show(
       context,
       message: 'Membuat pesanan...',
@@ -444,6 +456,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
       print('═══════════════════════════════════════════════════════════');
 
       if (_userId.isEmpty) {
+        _isCreatingOrder = false;
         AppLoading.hide(context);
         showDialog(
           context: context,
@@ -455,11 +468,14 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         return;
       }
 
-      // Generate Order ID dengan format ORD-YYYY-MM-DD-XXXXXX
-      final now = DateTime.now();
-      final orderId =
-          'ORD-${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}-${DateTime.now().millisecondsSinceEpoch % 1000000}';
-      print('[ORDER ID] $orderId');
+      // Reuse orderId on retry to prevent duplicate orders
+      if (_pendingOrderId == null) {
+        final now = DateTime.now();
+        _pendingOrderId =
+            'ORD-${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}-${DateTime.now().millisecondsSinceEpoch % 1000000}';
+      }
+      final orderId = _pendingOrderId!;
+      print('[ORDER ID] $orderId (retry-safe)');
 
       // Prepare order data
       Map<String, dynamic> itemsData = {};
@@ -523,7 +539,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
       print('  - Status: ${orderData['status']}');
 
       // Simulate network delay for better UX
-      await Future.delayed(const Duration(milliseconds: 1500));
+      await Future.delayed(const Duration(milliseconds: 2000));
 
       // Save to Firestore dengan timeout 10 detik
       print('[FIREBASE] Saving to path: /shops/$_userId/orders/$orderId');
@@ -536,7 +552,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           .doc(orderId)
           .set(orderData)
           .timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 15),
         onTimeout: () {
           throw TimeoutException(
             'Firestore operation timeout - pastikan internet stabil',
@@ -546,6 +562,10 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
       print('[SUCCESS] ✅ Pesanan berhasil disimpan ke database!');
       print('═══════════════════════════════════════════════════════════');
+
+      // Order berhasil, reset pending state
+      _pendingOrderId = null;
+      _isCreatingOrder = false;
 
       // Close loading dialog and show success dialog
       if (mounted) {
@@ -616,6 +636,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         );
       }
     } catch (e) {
+      // Gagal, biarkan _pendingOrderId tetap ada supaya retry pakai ID sama
+      _isCreatingOrder = false;
+
       print('[ERROR] ❌ Gagal membuat pesanan!');
       print('[ERROR] Exception: $e');
       print('[ERROR] Type: ${e.runtimeType}');
@@ -661,71 +684,214 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         // Show error dialog with user-friendly message
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text(errorTitle),
-            content: SingleChildScrollView(
+          barrierDismissible: false,
+          builder: (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: white,
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.timer_outlined,
+                      size: 28,
+                      color: Colors.orange,
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  /// ===== TITLE =====
+                  Text(
+                    errorTitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  /// ===== MESSAGE =====
                   Text(
                     errorMessage,
-                    style: const TextStyle(fontSize: 14),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
                   ),
+
                   const SizedBox(height: 16),
+
+                  /// ===== ERROR DETAIL BOX =====
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
+                      color: const Color(0xFFF6F7F9),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Detail Error:',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                    child: Text(
+                      e.toString(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  /// ===== BUTTONS =====
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            'Tutup',
+                            style: sRegular.copyWith(color: textPrimary),
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          e.toString(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[700],
-                            fontFamily: 'monospace',
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: blue500,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
-                          maxLines: 5,
-                          overflow: TextOverflow.ellipsis,
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _createOrder();
+                          },
+                          child: Text(
+                            'Ulangi',
+                            style: sRegular.copyWith(color: white),
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('TUTUP'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  // Retry creating order
-                  _createOrder();
-                },
-                child: const Text('ULANGI'),
-              ),
-            ],
           ),
         );
       }
     }
   }
 
+  // pop up / dialog / alert
+  void _confirmExit() async {
+    final result = await showDialog<bool>(
+        context: context,
+        builder: (_) => Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                decoration: BoxDecoration(
+                  color: white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded,
+                        size: 40, color: Colors.orange),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Keluar dari halaman?',
+                      style: mBold.copyWith(),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Perubahan yang belum disimpan bisa hilang.',
+                      textAlign: TextAlign.center,
+                      style: sRegular.copyWith(color: Colors.grey[600]),
+                    ),
+                    const SizedBox(
+                      height: 20,
+                    ),
+                    Row(children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF3F4F6),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            "Batal",
+                            style: sRegular.copyWith(color: textPrimary),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEF4444),
+                            elevation: 2,
+                            shadowColor:
+                                const Color(0xFFEF4444).withOpacity(0.3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text(
+                            'Keluar',
+                            style: sRegular.copyWith(color: white),
+                          ),
+                        ),
+                      ),
+                    ])
+                  ],
+                ),
+              ),
+            ));
+    if (result == true && mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+// Mulai dari sini
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -761,7 +927,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     return Row(
       children: [
         InkWell(
-          onTap: () => Navigator.pop(context),
+          onTap: _confirmExit,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(8),
@@ -1277,7 +1443,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                       child: GestureDetector(
                         onTap: () => setState(() => _selectedSpeed = 'Regular'),
                         child: Container(
-                          height: 60,
+                          height: 65,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
                             color: _selectedSpeed == 'Regular'
@@ -1303,6 +1469,11 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                         : textPrimary,
                                   ),
                                 ),
+                                const SizedBox(
+                                  height: 2,
+                                ),
+                                Text('(3-4 hari)',
+                                    style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
                           ),
@@ -1341,14 +1512,16 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  '+Rp ${_formatNumber(_expressSurcharge)}',
-                                  style: xsRegular.copyWith(
-                                    color: _selectedSpeed == 'Express'
-                                        ? Colors.grey[400]
-                                        : textMuted,
-                                  ),
-                                ),
+                                // Text(
+                                //   '+Rp ${_formatNumber(_expressSurcharge)}',
+                                //   style: xsRegular.copyWith(
+                                //     color: _selectedSpeed == 'Express'
+                                //         ? Colors.grey[400]
+                                //         : textMuted,
+                                //   ),
+                                // ),
+                                Text('(1-2 hari)',
+                                    style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
                           ),
@@ -1405,7 +1578,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                       child: GestureDetector(
                         onTap: () => setState(() => _selectedSpeed = 'Regular'),
                         child: Container(
-                          height: 60,
+                          height: 65,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
                             color: _selectedSpeed == 'Regular'
@@ -1431,6 +1604,11 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                         : textPrimary,
                                   ),
                                 ),
+                                const SizedBox(
+                                  height: 2,
+                                ),
+                                Text('(3-4 hari)',
+                                    style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
                           ),
@@ -1469,14 +1647,16 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  '+Rp ${_formatNumber(_expressSurcharge)}',
-                                  style: xsRegular.copyWith(
-                                    color: _selectedSpeed == 'Express'
-                                        ? Colors.grey[400]
-                                        : textMuted,
-                                  ),
-                                ),
+                                // Text(
+                                //   '+Rp ${_formatNumber(_expressSurcharge)}',
+                                //   style: xsRegular.copyWith(
+                                //     color: _selectedSpeed == 'Express'
+                                //         ? Colors.grey[400]
+                                //         : textMuted,
+                                //   ),
+                                // ),
+                                Text('(1-2 hari)',
+                                    style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
                           ),
@@ -1650,7 +1830,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                       child: GestureDetector(
                         onTap: () => setState(() => _selectedSpeed = 'Regular'),
                         child: Container(
-                          height: 60,
+                          height: 65,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
                             color: _selectedSpeed == 'Regular'
@@ -1676,6 +1856,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                         : textPrimary,
                                   ),
                                 ),
+                                const SizedBox(height: 2),
+                                Text('(3-4 hari)',
+                                    style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
                           ),
@@ -1714,14 +1897,16 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  '+Rp ${_formatNumber(_expressSurcharge)}',
-                                  style: xsRegular.copyWith(
-                                    color: _selectedSpeed == 'Express'
-                                        ? Colors.grey[400]
-                                        : textMuted,
-                                  ),
-                                ),
+                                // Text(
+                                //   '+Rp ${_formatNumber(_expressSurcharge)}',
+                                //   style: xsRegular.copyWith(
+                                //     color: _selectedSpeed == 'Express'
+                                //         ? Colors.grey[400]
+                                //         : textMuted,
+                                //   ),
+                                // ),
+                                Text('(1-2 hari)',
+                                    style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
                           ),
@@ -2084,8 +2269,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
-                        child: Image.asset(
-                          'assets/images/bust_in_silhouette.png',
+                        child: SvgPicture.asset(
+                          'assets/svg/user.svg',
+                          color: blue500,
                           width: 22,
                           height: 22,
                         ),
@@ -2281,9 +2467,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
     // Map category ke image path
     final imageMap = {
-      'Kiloan': 'assets/images/Balance_Scale.png',
-      'Satuan': 'assets/images/shirt.png',
-      'Campuran': 'assets/images/package.png',
+      'Kiloan': 'assets/svg/weighing-machine.svg',
+      'Satuan': 'assets/svg/tshirt.svg',
+      'Campuran': 'assets/svg/box.svg',
     };
 
     return Expanded(
@@ -2291,7 +2477,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         onTap: () => setState(() => _selectedCategory = category),
         child: Container(
           width: double.infinity,
-          height: 125, // Lebih besar untuk semua sama
+          height: 120, // Lebih besar untuk semua sama
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: isSelected ? blue500.withOpacity(0.1) : bgInput,
@@ -2305,11 +2491,12 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Image
-              Image.asset(
+              // // Image
+              SvgPicture.asset(
                 imageMap[category]!,
                 height: 40,
                 width: 40,
+                color: isSelected ? blue500 : textPrimary,
                 fit: BoxFit.contain,
               ),
               const SizedBox(height: 12),
@@ -2332,9 +2519,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   Widget _buildDetailPesananSection(String categoryLabel, int servicePrice) {
     // Map category to image path
     final categoryImageMap = {
-      'Kiloan': 'assets/images/Balance_Scale.png',
-      'Satuan': 'assets/images/shirt.png',
-      'Campuran': 'assets/images/package.png',
+      'Kiloan': 'assets/svg/weighing-machine.svg',
+      'Satuan': 'assets/svg/tshirt.svg',
+      'Campuran': 'assets/svg/box.svg',
     };
 
     return Container(
@@ -2358,9 +2545,10 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
-                  child: Image.asset(
-                    'assets/images/basket.png',
+                  child: SvgPicture.asset(
+                    'assets/svg/receipt-2.svg',
                     width: 22,
+                    color: blue500,
                     height: 22,
                   ),
                 ),
@@ -2384,10 +2572,10 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                 'Mode: ',
                 style: sRegular.copyWith(color: textMuted),
               ),
-              Image.asset(
-                categoryImageMap[_selectedCategory] ??
-                    'assets/images/package.png',
+              SvgPicture.asset(
+                categoryImageMap[_selectedCategory] ?? 'assets/svg/box.svg',
                 width: 18,
+                color: blue500,
                 height: 18,
               ),
               const SizedBox(width: 6),

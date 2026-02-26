@@ -6,11 +6,13 @@ import 'dart:async';
 import 'package:laundriin/ui/typography.dart';
 
 class ServiceDistributionChart extends StatefulWidget {
-  final String period; // 'week' or 'month'
+  final String period; // 'day', 'week' or 'month'
+  final DateTime referenceDate;
 
   const ServiceDistributionChart({
     super.key,
     required this.period,
+    required this.referenceDate,
   });
 
   @override
@@ -55,8 +57,9 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
   @override
   void didUpdateWidget(ServiceDistributionChart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.period != widget.period) {
-      // Period changed, update listener
+    if (oldWidget.period != widget.period ||
+        oldWidget.referenceDate != widget.referenceDate) {
+      // Period or date changed, update listener
       _ordersSubscription?.cancel();
       _setupRealtimeListener();
     }
@@ -70,15 +73,20 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
 
   void _setupRealtimeListener() {
     try {
-      final now = DateTime.now();
+      final ref = widget.referenceDate;
       late final DateTime startDate;
+      late final DateTime endDate;
 
-      if (widget.period == 'week') {
-        // Start of this week (Monday)
-        startDate = now.subtract(Duration(days: now.weekday - 1));
+      if (widget.period == 'day') {
+        startDate = DateTime(ref.year, ref.month, ref.day);
+        endDate = startDate.add(const Duration(days: 1));
+      } else if (widget.period == 'week') {
+        startDate = DateTime(ref.year, ref.month, ref.day)
+            .subtract(Duration(days: ref.weekday - 1));
+        endDate = startDate.add(const Duration(days: 7));
       } else {
-        // Start of this month
-        startDate = DateTime(now.year, now.month, 1);
+        startDate = DateTime(ref.year, ref.month, 1);
+        endDate = DateTime(ref.year, ref.month + 1, 1);
       }
 
       final startOfDay =
@@ -90,6 +98,7 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
           .collection('orders')
           .where('createdAt',
               isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .where('createdAt', isLessThan: Timestamp.fromDate(endDate))
           .where('status', whereIn: ['completed', 'process'])
           .snapshots()
           .listen((snapshot) {
@@ -186,31 +195,34 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
           Expanded(
             child: AspectRatio(
               aspectRatio: 1,
-              child: PieChart(
-                PieChartData(
-                  pieTouchData: PieTouchData(
-                    touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                      setState(() {
-                        if (!event.isInterestedForInteractions ||
-                            pieTouchResponse == null ||
-                            pieTouchResponse.touchedSection == null) {
-                          _touchedIndex = -1;
-                          return;
-                        }
-                        _touchedIndex = pieTouchResponse
-                            .touchedSection!.touchedSectionIndex;
-                      });
-                    },
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: PieChart(
+                  PieChartData(
+                    pieTouchData: PieTouchData(
+                      touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                        setState(() {
+                          if (!event.isInterestedForInteractions ||
+                              pieTouchResponse == null ||
+                              pieTouchResponse.touchedSection == null) {
+                            _touchedIndex = -1;
+                            return;
+                          }
+                          _touchedIndex = pieTouchResponse
+                              .touchedSection!.touchedSectionIndex;
+                        });
+                      },
+                    ),
+                    borderData: FlBorderData(show: false),
+                    sectionsSpace: 0,
+                    centerSpaceRadius: 40,
+                    sections: _showingSections(total),
                   ),
-                  borderData: FlBorderData(show: false),
-                  sectionsSpace: 0,
-                  centerSpaceRadius: 40,
-                  sections: _showingSections(total),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 15),
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,7 +288,7 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
 
       final isTouched = i == _touchedIndex;
       final fontSize = isTouched ? 16.0 : 14.0;
-      final radius = isTouched ? 80.0 : 70.0;
+      final radius = isTouched ? 72.0 : 64.0;
 
       return PieChartSectionData(
         color: service['color'] as Color,
