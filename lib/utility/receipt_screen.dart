@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/config/shop_config.dart';
+import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 
 class ReceiptScreen extends StatefulWidget {
   final String orderId;
@@ -22,6 +23,7 @@ class ReceiptScreen extends StatefulWidget {
   final String? notes;
   final int? pricePerKilo;
   final int? expressCharge;
+  final String source; // 'home' or 'orders' (default: 'orders')
 
   const ReceiptScreen({
     super.key,
@@ -41,6 +43,7 @@ class ReceiptScreen extends StatefulWidget {
     this.notes,
     this.pricePerKilo,
     this.expressCharge,
+    this.source = 'orders',
   });
 
   @override
@@ -99,7 +102,20 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     return Row(
       children: [
         InkWell(
-          onTap: () => Navigator.pop(context),
+          onTap: () {
+            // Jika dari Add Order (home), langsung ke home
+            if (widget.source == 'home') {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => const MainNavigation(),
+                ),
+                (route) => false,
+              );
+            } else {
+              // Jika dari Orders Detail, pop biasa (balik ke detail)
+              Navigator.pop(context);
+            }
+          },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(8),

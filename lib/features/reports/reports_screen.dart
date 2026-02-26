@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:laundriin/ui/color.dart';
@@ -33,11 +34,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
   List<Map<String, dynamic>> _expenseItems = [];
   StreamSubscription? _expenseSubscription;
 
+  // Top customers state
+  List<Map<String, dynamic>> _topCustomers = [];
+  StreamSubscription? _topCustomersSubscription;
+
+  // Pending orders state
+  List<Map<String, dynamic>> _pendingOrders = [];
+  StreamSubscription? _pendingOrdersSubscription;
+
   @override
   void initState() {
     super.initState();
     _setupIncomeListener();
     _setupExpenseListener();
+    _setupTopCustomersListener();
+    _setupPendingOrdersListener();
   }
 
   @override
@@ -50,6 +61,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   void dispose() {
     _incomeSubscription?.cancel();
     _expenseSubscription?.cancel();
+    _topCustomersSubscription?.cancel();
+    _pendingOrdersSubscription?.cancel();
     super.dispose();
   }
 
@@ -286,6 +299,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
           _setupIncomeListener();
           _expenseSubscription?.cancel();
           _setupExpenseListener();
+          _topCustomersSubscription?.cancel();
+          _setupTopCustomersListener();
+          _pendingOrdersSubscription?.cancel();
+          _setupPendingOrdersListener();
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 15),
@@ -406,6 +423,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
     _setupIncomeListener();
     _expenseSubscription?.cancel();
     _setupExpenseListener();
+    _topCustomersSubscription?.cancel();
+    _setupTopCustomersListener();
+    _pendingOrdersSubscription?.cancel();
+    _setupPendingOrdersListener();
   }
 
   Future<void> _openDatePicker() async {
@@ -437,6 +458,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _setupIncomeListener();
       _expenseSubscription?.cancel();
       _setupExpenseListener();
+      _topCustomersSubscription?.cancel();
+      _setupTopCustomersListener();
+      _pendingOrdersSubscription?.cancel();
+      _setupPendingOrdersListener();
     }
   }
 
@@ -564,6 +589,137 @@ class _ReportsScreenState extends State<ReportsScreen> {
       print('[EXPENSE] ✅ Listener setup for $selectedPeriod');
     } catch (e) {
       print('[EXPENSE] ❌ Error setup listener: $e');
+    }
+  }
+
+  // ===== TOP CUSTOMERS LISTENER =====
+  void _setupTopCustomersListener() {
+    try {
+      final ref = _selectedDate;
+      late final DateTime currentStart;
+      late final DateTime currentEnd;
+
+      if (selectedPeriod == 'day') {
+        currentStart = DateTime(ref.year, ref.month, ref.day);
+        currentEnd = currentStart.add(const Duration(days: 1));
+      } else if (selectedPeriod == 'week') {
+        currentStart = DateTime(ref.year, ref.month, ref.day)
+            .subtract(Duration(days: ref.weekday - 1));
+        currentEnd = currentStart.add(const Duration(days: 7));
+      } else {
+        currentStart = DateTime(ref.year, ref.month, 1);
+        currentEnd = DateTime(ref.year, ref.month + 1, 1);
+      }
+
+      _topCustomersSubscription = _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('orders')
+          .where('status', isEqualTo: 'completed')
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted) {
+          // Group by customerName
+          final Map<String, Map<String, dynamic>> customerMap = {};
+
+          for (var doc in snapshot.docs) {
+            final createdAt = doc['createdAt'] as Timestamp?;
+            if (createdAt == null) continue;
+
+            final orderDate = createdAt.toDate();
+            if (orderDate.isBefore(currentStart) ||
+                !orderDate.isBefore(currentEnd)) continue;
+
+            final name = doc['customerName'] as String? ?? 'Unknown';
+            final phone = doc['customerPhone'] as String? ?? '';
+            final price = doc['totalPrice'] as int? ?? 0;
+
+            if (customerMap.containsKey(name)) {
+              customerMap[name]!['orders'] =
+                  (customerMap[name]!['orders'] as int) + 1;
+              customerMap[name]!['amount'] =
+                  (customerMap[name]!['amount'] as int) + price;
+            } else {
+              customerMap[name] = {
+                'name': name,
+                'phone': phone,
+                'orders': 1,
+                'amount': price,
+              };
+            }
+          }
+
+          // Sort by order count descending, then by amount
+          final sorted = customerMap.values.toList()
+            ..sort((a, b) {
+              final cmp = (b['orders'] as int).compareTo(a['orders'] as int);
+              if (cmp != 0) return cmp;
+              return (b['amount'] as int).compareTo(a['amount'] as int);
+            });
+
+          setState(() {
+            _topCustomers = sorted.take(3).toList();
+          });
+        }
+      }, onError: (e) {
+        print('[TOP CUSTOMERS] Error: $e');
+      });
+
+      print('[TOP CUSTOMERS] ✅ Listener setup for $selectedPeriod');
+    } catch (e) {
+      print('[TOP CUSTOMERS] ❌ Error setup listener: $e');
+    }
+  }
+
+  // ===== PENDING ORDERS LISTENER =====
+  void _setupPendingOrdersListener() {
+    _pendingOrdersSubscription?.cancel();
+    try {
+      _pendingOrdersSubscription = _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('orders')
+          .where('status', whereIn: ['pending', 'process'])
+          .snapshots()
+          .listen((snapshot) {
+            if (mounted) {
+              final now = DateTime.now();
+              List<Map<String, dynamic>> orders = [];
+
+              for (var doc in snapshot.docs) {
+                final createdAt = doc['createdAt'] as Timestamp?;
+                if (createdAt == null) continue;
+
+                final orderDate = createdAt.toDate();
+                final daysOverdue = now.difference(orderDate).inDays;
+
+                orders.add({
+                  'id': doc.id,
+                  'orderId': doc['orderId'] ?? doc.id,
+                  'customerName': doc['customerName'] ?? 'Unknown',
+                  'customerPhone': doc['customerPhone'] ?? '',
+                  'totalPrice': doc['totalPrice'] as int? ?? 0,
+                  'status': doc['status'] ?? 'pending',
+                  'daysOverdue': daysOverdue,
+                  'createdAt': orderDate,
+                });
+              }
+
+              // Sort: paling lama (overdue terbesar) di atas
+              orders.sort((a, b) =>
+                  (b['daysOverdue'] as int).compareTo(a['daysOverdue'] as int));
+
+              setState(() {
+                _pendingOrders = orders;
+              });
+            }
+          }, onError: (e) {
+            print('[PENDING ORDERS] Error: $e');
+          });
+
+      print('[PENDING ORDERS] ✅ Listener setup');
+    } catch (e) {
+      print('[PENDING ORDERS] ❌ Error setup listener: $e');
     }
   }
 
@@ -874,21 +1030,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
               'Income Trend',
               style: mBold.copyWith(),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F8F5F).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                '+12.5% this week',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F8F5F),
-                ),
-              ),
-            ),
+            // Container(
+            //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            //   decoration: BoxDecoration(
+            //     color: const Color(0xFF1F8F5F).withOpacity(0.1),
+            //     borderRadius: BorderRadius.circular(6),
+            //   ),
+            //   // child: const Text(
+            //   //   '+12.5% this week',
+            //   //   style: TextStyle(
+            //   //     fontSize: 11,
+            //   //     fontWeight: FontWeight.bold,
+            //   //     color: Color(0xFF1F8F5F),
+            //   //   ),
+            //   // ),
+            // ),
           ],
         ),
         const SizedBox(height: 12),
@@ -1042,27 +1198,44 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   // ===== 5. TOP CUSTOMERS =====
   Widget _buildTopCustomers() {
-    // Dummy data - replace dengan Firebase nanti
-    final topCustomers = [
-      {
-        'name': 'Rudi Hartono',
-        'orders': 5,
-        'amount': 950000,
-        'phone': '081234567890',
-      },
-      {
-        'name': 'Siti Nurhaliza',
-        'orders': 4,
-        'amount': 760000,
-        'phone': '081987654321',
-      },
-      {
-        'name': 'Budi Santoso',
-        'orders': 3,
-        'amount': 570000,
-        'phone': '082123456789',
-      },
-    ];
+    if (_topCustomers.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pelanggan Terbanyak',
+            style: mBold,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                )
+              ],
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.people_outline_rounded,
+                    size: 40, color: Colors.grey[300]),
+                const SizedBox(height: 8),
+                Text(
+                  'Belum ada data pelanggan',
+                  style: smRegular.copyWith(color: Colors.grey[400]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1085,8 +1258,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ],
           ),
           child: Column(
-            children: List.generate(topCustomers.length, (index) {
-              final customer = topCustomers[index];
+            children: List.generate(_topCustomers.length, (index) {
+              final customer = _topCustomers[index];
               final rank = index + 1;
               final orders = customer['orders'] as int;
               final amount = customer['amount'] as int;
@@ -1167,133 +1340,111 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  // ===== 6. STATUS ORDERS SUMMARY =====
-  Widget _buildStatusOrdersSummary() {
-    // Dummy data - replace dengan Firebase nanti
-    final statusData = [
-      {
-        'label': 'Selesai',
-        'count': 30,
-        'icon': Icons.check_circle_rounded,
-        'color': const Color(0xFF1F8F5F),
-        'bgColor': const Color(0xFF1F8F5F).withOpacity(0.1),
-      },
-      {
-        'label': 'Proses',
-        'count': 12,
-        'icon': Icons.autorenew_rounded,
-        'color': const Color(0xFFF59E0B),
-        'bgColor': const Color(0xFFF59E0B).withOpacity(0.1),
-      },
-      {
-        'label': 'Pending',
-        'count': 5,
-        'icon': Icons.schedule_rounded,
-        'color': const Color(0xFF3B82F6),
-        'bgColor': const Color(0xFF3B82F6).withOpacity(0.1),
-      },
-      {
-        'label': 'Batal',
-        'count': 2,
-        'icon': Icons.cancel_rounded,
-        'color': Colors.red,
-        'bgColor': Colors.red.withOpacity(0.1),
-      },
-    ];
+  // // ===== 6. STATUS ORDERS SUMMARY =====
+  // Widget _buildStatusOrdersSummary() {
+  //   // Dummy data - replace dengan Firebase nanti
+  //   final statusData = [
+  //     {
+  //       'label': 'Selesai',
+  //       'count': 30,
+  //       'icon': Icons.check_circle_rounded,
+  //       'color': const Color(0xFF1F8F5F),
+  //       'bgColor': const Color(0xFF1F8F5F).withOpacity(0.1),
+  //     },
+  //     {
+  //       'label': 'Proses',
+  //       'count': 12,
+  //       'icon': Icons.autorenew_rounded,
+  //       'color': const Color(0xFFF59E0B),
+  //       'bgColor': const Color(0xFFF59E0B).withOpacity(0.1),
+  //     },
+  //     {
+  //       'label': 'Pending',
+  //       'count': 5,
+  //       'icon': Icons.schedule_rounded,
+  //       'color': const Color(0xFF3B82F6),
+  //       'bgColor': const Color(0xFF3B82F6).withOpacity(0.1),
+  //     },
+  //     {
+  //       'label': 'Batal',
+  //       'count': 2,
+  //       'icon': Icons.cancel_rounded,
+  //       'color': Colors.red,
+  //       'bgColor': Colors.red.withOpacity(0.1),
+  //     },
+  //   ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Status Pesanan',
-          style: mBold,
-        ),
-        const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: statusData.map((status) {
-            return Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  )
-                ],
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: status['bgColor'] as Color,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      status['icon'] as IconData,
-                      color: status['color'] as Color,
-                      size: 24,
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      Text(
-                        (status['count'] as int).toString(),
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                      Text(
-                        status['label'] as String,
-                        style: xsRegular.copyWith(color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Text(
+  //         'Status Pesanan',
+  //         style: mBold,
+  //       ),
+  //       const SizedBox(height: 12),
+  //       GridView.count(
+  //         crossAxisCount: 2,
+  //         crossAxisSpacing: 12,
+  //         mainAxisSpacing: 12,
+  //         shrinkWrap: true,
+  //         physics: const NeverScrollableScrollPhysics(),
+  //         children: statusData.map((status) {
+  //           return Container(
+  //             decoration: BoxDecoration(
+  //               color: Colors.white,
+  //               borderRadius: BorderRadius.circular(14),
+  //               boxShadow: [
+  //                 BoxShadow(
+  //                   color: Colors.black.withOpacity(0.06),
+  //                   blurRadius: 8,
+  //                   offset: const Offset(0, 2),
+  //                 )
+  //               ],
+  //             ),
+  //             padding: const EdgeInsets.all(16),
+  //             child: Column(
+  //               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //               children: [
+  //                 Container(
+  //                   width: 48,
+  //                   height: 48,
+  //                   decoration: BoxDecoration(
+  //                     color: status['bgColor'] as Color,
+  //                     borderRadius: BorderRadius.circular(12),
+  //                   ),
+  //                   child: Icon(
+  //                     status['icon'] as IconData,
+  //                     color: status['color'] as Color,
+  //                     size: 24,
+  //                   ),
+  //                 ),
+  //                 Column(
+  //                   children: [
+  //                     Text(
+  //                       (status['count'] as int).toString(),
+  //                       style: const TextStyle(
+  //                         fontSize: 24,
+  //                         fontWeight: FontWeight.bold,
+  //                         color: Color(0xFF111827),
+  //                       ),
+  //                     ),
+  //                     Text(
+  //                       status['label'] as String,
+  //                       style: xsRegular.copyWith(color: Colors.grey[600]),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ],
+  //             ),
+  //           );
+  //         }).toList(),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   // ===== 7. PENDING ORDERS ALERT =====
   Widget _buildPendingOrdersAlert() {
-    // Dummy data - replace dengan Firebase nanti
-    final pendingOrders = [
-      {
-        'orderId': 'ORD-2026-02-18-001',
-        'customerName': 'Rudi Hartono',
-        'daysOverdue': 2,
-        'totalPrice': 150000,
-      },
-      {
-        'orderId': 'ORD-2026-02-17-002',
-        'customerName': 'Siti Nurhaliza',
-        'daysOverdue': 1,
-        'totalPrice': 200000,
-      },
-      {
-        'orderId': 'ORD-2026-02-16-003',
-        'customerName': 'Budi Santoso',
-        'daysOverdue': 3,
-        'totalPrice': 175000,
-      },
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1304,7 +1455,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               'Pesanan Tertunda',
               style: mBold,
             ),
-            if (pendingOrders.isNotEmpty)
+            if (_pendingOrders.isNotEmpty)
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1313,7 +1464,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '${pendingOrders.length} pesanan',
+                  '${_pendingOrders.length} pesanan',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -1324,8 +1475,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        if (pendingOrders.isEmpty)
+        if (_pendingOrders.isEmpty)
           Container(
+            width: double.infinity,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
@@ -1341,10 +1493,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             child: Center(
               child: Column(
                 children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: const Color(0xFF1F8F5F),
-                    size: 48,
+                  Image.asset(
+                    'assets/images/check-2.png',
+                    width: 40,
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -1371,15 +1522,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: pendingOrders.length,
+              itemCount: _pendingOrders.length,
               separatorBuilder: (context, index) => Divider(
                 height: 1,
                 color: Colors.grey[200],
               ),
               itemBuilder: (context, index) {
-                final order = pendingOrders[index];
+                final order = _pendingOrders[index];
                 final daysOverdue = order['daysOverdue'] as int;
                 final isUrgent = daysOverdue > 2;
+                final status = order['status'] as String;
+                final statusLabel =
+                    status == 'process' ? 'Diproses' : 'Pending';
 
                 return Padding(
                   padding: const EdgeInsets.all(12),
@@ -1396,7 +1550,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
-                          Icons.warning_rounded,
+                          isUrgent
+                              ? Icons.warning_rounded
+                              : Icons.schedule_rounded,
                           color: isUrgent ? Colors.red : Colors.orange,
                           size: 20,
                         ),
@@ -1412,30 +1568,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               style: smBold.copyWith(color: textPrimary),
                             ),
                             Text(
-                              '${order['orderId']} • ${daysOverdue} hari terlewat',
+                              '$statusLabel • $daysOverdue hari lalu',
                               style:
                                   xsRegular.copyWith(color: Colors.grey[600]),
                             ),
                           ],
                         ),
                       ),
-                      // Action button
-                      Column(
-                        children: [
-                          Text(
-                            _formatCurrency(order['totalPrice'] as int),
-                            style: smBold.copyWith(
-                              color: isUrgent ? Colors.red : Colors.orange,
-                            ),
-                          ),
-                          Text(
-                            'Hubungi',
-                            style: xsRegular.copyWith(
-                              color: isUrgent ? Colors.red : Colors.orange,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      // Price
+                      Text(
+                        _formatCurrency(order['totalPrice'] as int),
+                        style: smBold.copyWith(
+                          color: isUrgent ? Colors.red : Colors.orange,
+                        ),
                       ),
                     ],
                   ),
@@ -1456,30 +1601,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Pengeluaran', style: mBold),
-            if (selectedPeriod == 'week' || selectedPeriod == 'day')
-              GestureDetector(
-                onTap: () => _showAddExpenseDialog(),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: blue500,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.add_rounded,
-                          color: Colors.white, size: 18),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Tambah',
-                        style:
-                            smBold.copyWith(color: Colors.white, fontSize: 13),
-                      ),
-                    ],
-                  ),
+            GestureDetector(
+              onTap: () => _showAddExpenseDialog(),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: blue500,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.add_rounded,
+                        color: Colors.white, size: 18),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tambah',
+                      style: smBold.copyWith(color: Colors.white, fontSize: 13),
+                    ),
+                  ],
                 ),
               ),
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -1503,8 +1646,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 child: Column(
                   children: [
-                    Icon(Icons.receipt_long_rounded,
-                        color: Colors.grey[500], size: 35),
+                    SvgPicture.asset(
+                      'assets/svg/receipt-2.svg',
+                      width: 35,
+                      color: Colors.grey[500],
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Belum ada pengeluaran',
@@ -2031,10 +2177,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   color: const Color(0xFF2F5FE3).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  color: Color(0xFF2F5FE3),
-                  size: 22,
+                child: Center(
+                  child: SizedBox(
+                    width: 25,
+                    height: 25,
+                    child: SvgPicture.asset(
+                      'assets/svg/pdf.svg',
+                      color: blue500,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),

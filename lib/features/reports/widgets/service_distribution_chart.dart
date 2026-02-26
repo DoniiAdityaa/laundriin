@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_svg/svg.dart';
 import 'dart:async';
 import 'package:laundriin/ui/typography.dart';
 
@@ -173,8 +174,11 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.pie_chart_rounded,
-                    size: 35, color: Colors.grey[500]),
+                SvgPicture.asset(
+                  'assets/svg/pie-chart.svg',
+                  width: 35,
+                  color: Colors.grey[500],
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Belum ada data layanan',

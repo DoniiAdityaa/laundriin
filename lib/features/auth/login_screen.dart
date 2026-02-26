@@ -15,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -22,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -155,11 +157,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       TextFormField(
                         controller: _emailController,
+                        textInputAction: TextInputAction.next,
                         keyboardType: TextInputType.emailAddress,
-                        style: xsRegular.copyWith(color: textPrimary),
+                        style: sRegular.copyWith(color: textPrimary),
                         decoration: InputDecoration(
                           hintText: "your email adderess",
-                          hintStyle: xsRegular.copyWith(color: textMuted),
+                          hintStyle: sRegular.copyWith(color: textMuted),
                           filled: true,
                           fillColor: bgInput,
                           contentPadding: const EdgeInsets.symmetric(
@@ -208,11 +211,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       TextFormField(
                         controller: _passwordController,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _login(),
                         obscureText: _obscurePassword,
-                        style: xsRegular.copyWith(color: textPrimary),
+                        style: sRegular.copyWith(color: textPrimary),
                         decoration: InputDecoration(
                           hintText: "your password",
-                          hintStyle: xsRegular.copyWith(color: textMuted),
+                          hintStyle: sRegular.copyWith(color: textMuted),
                           filled: true,
                           fillColor: bgInput,
                           contentPadding: const EdgeInsets.symmetric(

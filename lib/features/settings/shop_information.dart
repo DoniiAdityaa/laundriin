@@ -343,7 +343,7 @@ class _ShopInformationState extends State<ShopInformation> {
             hintText: "8xxxx",
             hintStyle: sRegular.copyWith(color: textMuted),
             prefixText: "+62 ",
-            prefixStyle: smBold.copyWith(color: textPrimary),
+            prefixStyle: sRegular.copyWith(color: textMuted),
             filled: true,
             fillColor: bgInput,
             contentPadding: const EdgeInsets.symmetric(

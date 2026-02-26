@@ -625,6 +625,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                       : null,
                   pricePerKilo: _pricePerKilo,
                   expressCharge: _expressSurcharge,
+                  source: 'home', // Dari Add Order, source adalah 'home'
                 ),
               ),
             );
@@ -2331,10 +2332,10 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Center(
-                          child: Icon(
-                            Icons.note_outlined,
+                          child: SvgPicture.asset(
+                            'assets/svg/notes.svg',
+                            width: 24,
                             color: Colors.orange[600],
-                            size: 22,
                           ),
                         ),
                       ),

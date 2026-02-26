@@ -29,7 +29,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
   // Orders data
   List<Map<String, dynamic>> _allOrders = [];
   List<Map<String, dynamic>> _filteredOrders = [];
-  bool _isLoading = true;
+
+  // Per-tab loading state: 0=pending, 1=process, 2=completed, 3=cancelled
+  final Map<int, bool> _tabLoadingState = {
+    0: true,
+    1: false,
+    2: false,
+    3: false
+  };
 
   // Order counts by status
   int _pendingCount = 0;
@@ -57,7 +64,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
 
     _setupRealtimeListener();
-    _loadOrders();
+    _loadOrdersForTab(0); // Load pending tab first
   }
 
   @override
@@ -68,9 +75,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
     super.dispose();
   }
 
-  Future<void> _loadOrders() async {
+  Future<void> _loadOrdersForTab(int tabIndex) async {
     try {
-      print('[ORDERS] Loading orders from Firestore...');
+      print('[ORDERS] Loading orders for tab $tabIndex...');
+      if (mounted) {
+        setState(() => _tabLoadingState[tabIndex] = true);
+      }
+
       final snapshot = await _firestore
           .collection('shops')
           .doc(_userId)
@@ -88,16 +99,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
             };
           }).toList();
           _updateOrderCounts();
-          _isLoading = false;
-          print('[ORDERS] Loaded ${_allOrders.length} orders');
+          _tabLoadingState[tabIndex] = false;
+          print(
+              '[ORDERS] Loaded ${_allOrders.length} orders for tab $tabIndex');
         });
 
         _filterOrders();
       }
     } catch (e) {
-      print('[ERROR] Load orders: $e');
+      print('[ERROR] Load orders for tab $tabIndex: $e');
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _tabLoadingState[tabIndex] = false);
       }
     }
   }
@@ -189,10 +201,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Future<void> _onRefresh() async {
-    if (mounted) {
-      setState(() => _isLoading = true);
-    }
-    await _loadOrders();
+    // Reload current tab data
+    await _loadOrdersForTab(selectedTab);
   }
 
   @override
@@ -314,7 +324,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
           setState(() {
             selectedTab = index;
           });
-          _filterOrders();
+
+          // Load data for this tab if not already loaded
+          if (!_tabLoadingState.containsKey(index) ||
+              (_tabLoadingState[index] == false && _allOrders.isEmpty)) {
+            _loadOrdersForTab(index);
+          } else {
+            _filterOrders();
+          }
         }
       },
       child: Container(
@@ -401,7 +418,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   // Container Recent Orders
   Widget _buildRecentOrders() {
-    if (_isLoading) {
+    final isTabLoading = _tabLoadingState[selectedTab] ?? false;
+
+    if (isTabLoading) {
       return const Center(
         child: CircularProgressIndicator(),
       );
