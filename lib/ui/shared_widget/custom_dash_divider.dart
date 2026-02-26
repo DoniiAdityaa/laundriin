@@ -3,8 +3,7 @@ import 'package:laundriin/ui/color.dart';
 
 class CustomDashDivider extends StatelessWidget {
   const CustomDashDivider(
-      {Key? key, this.height = 1, this.color = borderNeutral})
-      : super(key: key);
+      {super.key, this.height = 1, this.color = borderNeutral});
   final double height;
   final Color color;
 
@@ -17,6 +16,8 @@ class CustomDashDivider extends StatelessWidget {
         final dashHeight = height;
         final dashCount = (boxWidth / (2 * dashWidth)).floor();
         return Flex(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          direction: Axis.horizontal,
           children: List.generate(dashCount, (_) {
             return SizedBox(
               width: dashWidth,
@@ -26,8 +27,6 @@ class CustomDashDivider extends StatelessWidget {
               ),
             );
           }),
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          direction: Axis.horizontal,
         );
       },
     );

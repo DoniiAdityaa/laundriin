@@ -112,11 +112,11 @@ class _ConfirmImageScreenState extends State<ConfirmImageScreen> {
               SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    child: Text("Gunakan"),
                     onPressed: () {
                       Navigator.pop(context, _selectedFile);
                     },
                     style: elevatedButtonLargeStyle,
+                    child: Text("Gunakan"),
                   )),
               SizedBox(
                 height: space300,

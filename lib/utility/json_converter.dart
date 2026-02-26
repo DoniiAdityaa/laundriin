@@ -23,13 +23,13 @@ extension<T> on Response<T> {
   Response<T> copyWith({required T data}) {
     return Response<T>(
       data: data,
-      headers: this.headers,
-      requestOptions: this.requestOptions,
-      statusCode: this.statusCode,
-      statusMessage: this.statusMessage,
-      extra: this.extra,
-      redirects: this.redirects,
-      isRedirect: this.isRedirect,
+      headers: headers,
+      requestOptions: requestOptions,
+      statusCode: statusCode,
+      statusMessage: statusMessage,
+      extra: extra,
+      redirects: redirects,
+      isRedirect: isRedirect,
     );
   }
 }

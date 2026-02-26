@@ -343,7 +343,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
 
         // Express Charge

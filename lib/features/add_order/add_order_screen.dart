@@ -50,7 +50,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   int _dryWashPrice = 0;
   int _steamIroningPrice = 0;
   List<Map<String, dynamic>> _nonKiloanItems = [];
-  Map<String, int> _nonKiloanSelectedItems = {}; // item id -> quantity
+  final Map<String, int> _nonKiloanSelectedItems = {}; // item id -> quantity
 
   // Track shop settings loading
   bool _shopSettingsLoaded = false;
@@ -96,7 +96,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           _nonKiloanItems = List<Map<String, dynamic>>.from(nonKiloanList);
         });
         print(
-            '[LOAD] Pricing: Wash=${_pricePerKilo}, Ironing=${_ironingPrice}, DryWash=${_dryWashPrice}, SteamIroning=${_steamIroningPrice}');
+            '[LOAD] Pricing: Wash=$_pricePerKilo, Ironing=$_ironingPrice, DryWash=$_dryWashPrice, SteamIroning=$_steamIroningPrice');
       }
     } catch (e) {
       print('[ERROR] Load pricing: $e');
@@ -123,7 +123,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           .doc(_userId)
           .collection('customers')
           .where('name', isGreaterThanOrEqualTo: query)
-          .where('name', isLessThan: query + 'z')
+          .where('name', isLessThan: '${query}z')
           .get();
 
       setState(() {
@@ -350,7 +350,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
       print('[SAVE] New customer created: $_selectedCustomerId');
     } catch (e) {
       print('[ERROR] Save customer: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -2629,18 +2629,17 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   unitPrice: price,
                 ),
               );
-            }).toList(),
+            }),
           ] else if (_selectedCategory == 'Campuran') ...[
             // Kiloan part
             _buildDetailPesananItem(
-              label: (_selectedServiceType == 'washComplete'
+              label: '${_selectedServiceType == 'washComplete'
                       ? 'Cuci Komplit'
                       : _selectedServiceType == 'ironing'
                           ? 'Setrika'
                           : _selectedServiceType == 'dryWash'
                               ? 'Cuci Kering'
-                              : 'Uap') +
-                  ' (Kiloan)',
+                              : 'Uap'} (Kiloan)',
               quantity: _weightC.text.isEmpty ? '0' : _weightC.text,
               unit: 'Kg',
               unitPrice: servicePrice,
@@ -2662,7 +2661,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   unitPrice: price,
                 ),
               );
-            }).toList(),
+            }),
           ],
 
           // ===== BIAYA TAMBAHAN SECTION =====

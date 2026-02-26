@@ -491,7 +491,7 @@ class _PricingScreenState extends State<PricingScreen> {
                   },
                 ),
               );
-            }).toList()
+            })
           else
             Center(
               child: Padding(

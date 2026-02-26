@@ -274,7 +274,7 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
                     ],
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ),
           const SizedBox(width: 16),

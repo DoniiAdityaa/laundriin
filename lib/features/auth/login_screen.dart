@@ -5,7 +5,7 @@ import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/ui/typography.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();

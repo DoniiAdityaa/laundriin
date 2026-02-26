@@ -10,7 +10,7 @@ const String baseSocketSandbox = 'https://socket.pcctabessmg.xyz';
 const String baseUrl = isProduction ? baseUrlProduction : baseUrlSandbox;
 const String baseSocket =
     isProduction ? baseSocketProduction : baseSocketSandbox;
-const String baseApi = "${baseUrl}";
+const String baseApi = baseUrl;
 const String baseApiV2 = "$baseUrl/apis/v2";
 const String baseImage = "$baseUrl/images/products/";
 const String path_slider = "$baseUrl/images/sliders/";

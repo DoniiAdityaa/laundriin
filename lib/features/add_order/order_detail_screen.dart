@@ -26,8 +26,8 @@ class OrderDetailScreen extends StatefulWidget {
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   late Map<String, dynamic> _orderData;
   List<String> _photos = []; // Cloud URLs
-  Map<String, double> _uploadProgress = {}; // Track upload progress per photo
-  Map<String, bool> _isUploading = {}; // Track upload state per photo
+  final Map<String, double> _uploadProgress = {}; // Track upload progress per photo
+  final Map<String, bool> _isUploading = {}; // Track upload state per photo
 
   late String _currentStatus;
 
@@ -713,7 +713,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          Container(
+          SizedBox(
             width: 22,
             height: 22,
             child: SvgPicture.asset(icon, color: iconButtonOutlined),

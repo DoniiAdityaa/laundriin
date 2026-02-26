@@ -125,7 +125,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         print('[INCOME] Error: $e');
       });
 
-      print('[INCOME] ✅ Listener setup for ${selectedPeriod}');
+      print('[INCOME] ✅ Listener setup for $selectedPeriod');
     } catch (e) {
       print('[INCOME] ❌ Error setup listener: $e');
     }
@@ -628,7 +628,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
             final orderDate = createdAt.toDate();
             if (orderDate.isBefore(currentStart) ||
-                !orderDate.isBefore(currentEnd)) continue;
+                !orderDate.isBefore(currentEnd)) {
+              continue;
+            }
 
             final name = doc['customerName'] as String? ?? 'Unknown';
             final phone = doc['customerPhone'] as String? ?? '';

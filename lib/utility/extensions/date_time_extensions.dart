@@ -79,8 +79,8 @@ extension DateTimeExtensions on DateTime {
   }
 
   DateTime add7Hours() {
-    if (this.isUtc) {
-      return this.add(Duration(hours: 7)).toLocal();
+    if (isUtc) {
+      return add(Duration(hours: 7)).toLocal();
     }
     return this;
   }
