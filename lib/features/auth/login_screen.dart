@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 8),
 
                       Text(
-                        "Laundry Shop Management",
+                        "Sistem Manajemen Laundry",
                         style: xsRegular.copyWith(
                           color: textSecondary,
                           fontWeight: FontWeight.w600,
@@ -320,7 +320,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 18),
 
                       Text(
-                        "Secure access for shop owners only",
+                        "Mode Developer Doni Aditya",
                         style: xsRegular.copyWith(
                           color: textMuted,
                           fontWeight: FontWeight.w600,

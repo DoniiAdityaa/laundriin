@@ -7,7 +7,7 @@ class AppTheme {
   // Settings Light Theme
   static ThemeData get light {
     return ThemeData(
-      dividerTheme: DividerThemeData(color: primaryColor),
+      dividerTheme: DividerThemeData(color: blue500),
       fontFamily: "DIN14",
       useMaterial3: true,
 
@@ -20,7 +20,7 @@ class AppTheme {
 
       colorScheme: const ColorScheme(
         brightness: Brightness.light,
-        primary: primaryColor,
+        primary: blue500,
         onPrimary: black50,
         primaryContainer: primaryColor,
         onPrimaryContainer: black50,
@@ -53,7 +53,7 @@ class AppTheme {
 
       // Progress indicator
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: primaryColor,
+        color: blue500,
       ),
 
       elevatedButtonTheme: elevatedButtonThemeData,
@@ -83,7 +83,7 @@ class AppTheme {
 
       colorScheme: const ColorScheme(
         brightness: Brightness.light,
-        primary: primaryColor,
+        primary: blue500,
         onPrimary: black50,
         primaryContainer: primaryColor,
         onPrimaryContainer: black50,
