@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:laundriin/features/settings/shop_information.dart';
+import 'package:laundriin/features/settings/template_whatsaap_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
@@ -387,7 +388,13 @@ class _SettingScreenState extends State<SettingScreen> {
                 subtitle: "buat pesan notifikasi kustom",
                 iconBgColor: blue100,
                 iconColor: blue500,
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) =>
+                              const TemplateWhatsaapScreen()));
+                },
               ),
 
               const SizedBox(height: 10),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/dimension.dart';
@@ -83,6 +84,11 @@ AppBarTheme appbarTheme = AppBarTheme(
   surfaceTintColor: Colors.white,
   centerTitle: false,
   titleTextStyle: mMedium.copyWith(color: textNeutralPrimary),
+  systemOverlayStyle: SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+  ),
 );
 
 ActionIconThemeData actionIconThemeData = ActionIconThemeData(

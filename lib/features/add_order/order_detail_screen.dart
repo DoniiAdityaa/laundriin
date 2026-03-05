@@ -10,6 +10,7 @@ import 'package:laundriin/utility/app_loading_overlay.dart';
 import 'package:laundriin/utility/receipt_screen.dart';
 import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/services/cloudinary_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final Map<String, dynamic> orderData;
@@ -26,7 +27,8 @@ class OrderDetailScreen extends StatefulWidget {
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   late Map<String, dynamic> _orderData;
   List<String> _photos = []; // Cloud URLs
-  final Map<String, double> _uploadProgress = {}; // Track upload progress per photo
+  final Map<String, double> _uploadProgress =
+      {}; // Track upload progress per photo
   final Map<String, bool> _isUploading = {}; // Track upload state per photo
 
   late String _currentStatus;
@@ -592,6 +594,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  _buildWhatsAppButton(),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
@@ -614,7 +618,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: blue500,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -629,32 +633,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  _buildWhatsAppButton(),
                 ] else if (_currentStatus == 'completed') ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        // Open WhatsApp or similar
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('Integrasi WhatsApp akan segera hadir'),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'Pesan di WhatsApp',
-                        style: smSemiBold.copyWith(color: Colors.white),
-                      ),
-                    ),
-                  ),
+                  _buildWhatsAppButton(),
                 ] else if (_currentStatus == 'cancelled') ...[
                   SizedBox(
                     width: double.infinity,
@@ -680,6 +662,499 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
       ),
     );
+  }
+
+  // ===== WHATSAPP BUTTON =====
+  Widget _buildWhatsAppButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF25D366),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+          shadowColor: const Color(0xFF25D366).withOpacity(0.3),
+        ),
+        onPressed: () => _showWhatsAppTemplateSheet(),
+        label: Text(
+          'Kirim WhatsApp',
+          style: smSemiBold.copyWith(color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  // ===== WHATSAPP TEMPLATE SHEET =====
+  void _showWhatsAppTemplateSheet() {
+    final customerPhone = _orderData['customerPhone'] ?? '';
+    final customerName = _orderData['customerName'] ?? '';
+    final orderId = _orderData['orderId'] ?? '';
+    final totalPrice = _orderData['totalPrice'] ?? 0;
+    final weight = _orderData['weight'] ?? 0;
+    final speed = _orderData['speed'] ?? '';
+    final createdAt = _orderData['createdAt'] as Timestamp?;
+
+    // Get default category based on current status
+    final defaultCategory = _getDefaultCategoryForStatus(_currentStatus);
+
+    // Get templates
+    final templates = _getDefaultTemplates();
+
+    // Filter templates by default category
+    final matchingTemplates =
+        templates.where((t) => t['category'] == defaultCategory).toList();
+    final allTemplates = templates;
+
+    // Select first matching template
+    Map<String, dynamic>? selectedTemplate =
+        matchingTemplates.isNotEmpty ? matchingTemplates.first : null;
+
+    // Service display
+    final serviceType = _orderData['serviceType'] ?? '';
+    String serviceLabel = serviceType == 'washComplete'
+        ? 'Cuci Komplit'
+        : serviceType == 'ironing'
+            ? 'Setrika'
+            : serviceType == 'dryWash'
+                ? 'Cuci Kering'
+                : serviceType == 'steamIroning'
+                    ? 'Setrika Uap'
+                    : 'Laundry';
+
+    String dateStr = '';
+    if (createdAt != null) {
+      dateStr = DateFormat('d MMM yyyy').format(createdAt.toDate());
+    }
+
+    // Replace variables in message
+    String _fillTemplate(String message) {
+      return message
+          .replaceAll('{nama}', customerName)
+          .replaceAll('{orderId}', orderId.toString())
+          .replaceAll('{harga}', _formatNumber(totalPrice))
+          .replaceAll('{estimasi}', speed == 'express' ? '1 hari' : '2-3 hari')
+          .replaceAll('{tanggal}', dateStr)
+          .replaceAll('{phone}', customerPhone)
+          .replaceAll('{layanan}', serviceLabel)
+          .replaceAll('{berat}', '$weight kg');
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final filledMessage = selectedTemplate != null
+              ? _fillTemplate(selectedTemplate!['message'] as String)
+              : '';
+
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.82,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: gray300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF25D366).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(
+                          child: SvgPicture.asset(
+                            'assets/svg/whatsapp_.svg',
+                            width: 20,
+                            height: 20,
+                            color: const Color(0xFF25D366),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Kirim WhatsApp', style: mBold),
+                          Text(
+                            customerName,
+                            style: xsRegular.copyWith(color: gray500),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: gray100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.close_rounded,
+                              size: 18, color: gray500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Divider(height: 1, color: gray200),
+
+                // Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Template selector
+                        Text('Pilih Template',
+                            style: smSemiBold.copyWith(fontSize: 13)),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 38,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: allTemplates.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final t = allTemplates[index];
+                              final isSelected =
+                                  selectedTemplate?['id'] == t['id'];
+                              final cat = t['category'] as String;
+                              return GestureDetector(
+                                onTap: () {
+                                  setModalState(() {
+                                    selectedTemplate = t;
+                                  });
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? _getTemplateCategoryColor(cat)
+                                            .withOpacity(0.12)
+                                        : gray50,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? _getTemplateCategoryColor(cat)
+                                          : gray200,
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      t['title'] as String,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isSelected
+                                            ? _getTemplateCategoryColor(cat)
+                                            : gray500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Preview label
+                        Row(
+                          children: [
+                            Icon(Icons.visibility_outlined,
+                                size: 14, color: gray400),
+                            const SizedBox(width: 6),
+                            Text('Preview Pesan',
+                                style: xsRegular.copyWith(
+                                    color: gray400, fontSize: 11)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // WhatsApp chat bubble preview
+                        if (selectedTemplate != null)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCF8C6),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(14),
+                                topRight: Radius.circular(4),
+                                bottomLeft: Radius.circular(14),
+                                bottomRight: Radius.circular(14),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  filledMessage,
+                                  style: sRegular.copyWith(
+                                    color: const Color(0xFF1B1B1B),
+                                    height: 1.45,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      DateFormat('HH:mm')
+                                          .format(DateTime.now()),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(Icons.done_all_rounded,
+                                        size: 14,
+                                        color: const Color(0xFF53BDEB)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: gray50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Pilih template di atas',
+                                style: sRegular.copyWith(color: gray400),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+
+                        // Info
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: blue100),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline_rounded,
+                                  size: 16, color: blue500),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Variabel sudah otomatis diisi dari data pesanan. Kamu bisa kelola template di Settings > Template WhatsApp.',
+                                  style: xsRegular.copyWith(
+                                    color: blue600,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Bottom button
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(top: BorderSide(color: gray100)),
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: selectedTemplate != null
+                          ? () {
+                              Navigator.pop(ctx);
+                              _launchWhatsApp(customerPhone, filledMessage);
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366),
+                        disabledBackgroundColor: gray200,
+                        elevation: 2,
+                        shadowColor: const Color(0xFF25D366).withOpacity(0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: SvgPicture.asset(
+                        'assets/svg/whatsapp_.svg',
+                        width: 20,
+                        height: 20,
+                        color: Colors.white,
+                      ),
+                      label: Text(
+                        'Kirim via WhatsApp',
+                        style: smSemiBold.copyWith(
+                            color: Colors.white, fontSize: 15),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ===== LAUNCH WHATSAPP =====
+  Future<void> _launchWhatsApp(String phone, String message) async {
+    // Clean phone number: remove spaces, dashes, etc.
+    String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+
+    // Convert 08xx to 628xx
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '62${cleanPhone.substring(1)}';
+    }
+    // If no country code, add 62
+    if (!cleanPhone.startsWith('+') && !cleanPhone.startsWith('62')) {
+      cleanPhone = '62$cleanPhone';
+    }
+    // Remove + prefix for wa.me
+    cleanPhone = cleanPhone.replaceAll('+', '');
+
+    final encodedMessage = Uri.encodeComponent(message);
+    final url = 'https://wa.me/$cleanPhone?text=$encodedMessage';
+
+    try {
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tidak dapat membuka WhatsApp'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Color _getTemplateCategoryColor(String category) {
+    switch (category) {
+      case 'Konfirmasi':
+        return const Color(0xFF3B82F6);
+      case 'Proses':
+        return const Color(0xFFF97316);
+      case 'Siap Ambil':
+        return const Color(0xFF25D366);
+      case 'Reminder':
+        return const Color(0xFFF59E0B);
+      case 'Promo':
+        return const Color(0xFF8B5CF6);
+      default:
+        return gray500;
+    }
+  }
+
+  String _getDefaultCategoryForStatus(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Konfirmasi';
+      case 'process':
+        return 'Proses';
+      case 'completed':
+        return 'Siap Ambil';
+      default:
+        return 'Konfirmasi';
+    }
+  }
+
+  List<Map<String, dynamic>> _getDefaultTemplates() {
+    return [
+      {
+        'id': '1',
+        'title': 'Konfirmasi Pesanan',
+        'category': 'Konfirmasi',
+        'message':
+            'Halo {nama}, pesanan laundry Anda telah kami terima ✅\n\nNo. Pesanan: #{orderId}\nTotal: Rp {harga}\nEstimasi selesai: {estimasi}\n\nTerima kasih telah memilih layanan kami! 🫧',
+        'isActive': true,
+      },
+      {
+        'id': '2',
+        'title': 'Pesanan Sedang Diproses',
+        'category': 'Proses',
+        'message':
+            'Halo {nama}, pesanan laundry Anda sedang kami proses 🧺\n\nNo. Pesanan: #{orderId}\nLayanan: {layanan}\nBerat: {berat}\n\nMohon ditunggu ya, kami akan kabari setelah selesai! 💪',
+        'isActive': true,
+      },
+      {
+        'id': '3',
+        'title': 'Pesanan Siap Diambil',
+        'category': 'Siap Ambil',
+        'message':
+            'Halo {nama}, pesanan laundry Anda sudah selesai dan siap diambil! 🎉\n\nNo. Pesanan: #{orderId}\nTotal: Rp {harga}\n\nSilakan ambil di toko kami. Ditunggu ya! 😊',
+        'isActive': true,
+      },
+    ];
   }
 
   // ===== REUSABLE SECTION CARD =====

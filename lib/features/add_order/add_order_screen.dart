@@ -1227,7 +1227,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                     vertical: 14,
                   ),
                   prefixText: '+62 ',
-                  prefixStyle: smBold.copyWith(color: textPrimary),
+                  prefixStyle: smBold.copyWith(color: textMuted),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(color: borderLight),
@@ -2633,13 +2633,8 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           ] else if (_selectedCategory == 'Campuran') ...[
             // Kiloan part
             _buildDetailPesananItem(
-              label: '${_selectedServiceType == 'washComplete'
-                      ? 'Cuci Komplit'
-                      : _selectedServiceType == 'ironing'
-                          ? 'Setrika'
-                          : _selectedServiceType == 'dryWash'
-                              ? 'Cuci Kering'
-                              : 'Uap'} (Kiloan)',
+              label:
+                  '${_selectedServiceType == 'washComplete' ? 'Cuci Komplit' : _selectedServiceType == 'ironing' ? 'Setrika' : _selectedServiceType == 'dryWash' ? 'Cuci Kering' : 'Uap'} (Kiloan)',
               quantity: _weightC.text.isEmpty ? '0' : _weightC.text,
               unit: 'Kg',
               unitPrice: servicePrice,

@@ -16,7 +16,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _shopName = 'laundriin';
+  // Langsung baca dari ShopSettings supaya selalu fresh
+  String get _shopName => ShopSettings.shopName;
 
   // Firebase
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -64,9 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _loadShopName() {
-    setState(() {
-      _shopName = ShopSettings.shopName;
-    });
+    // Trigger rebuild supaya nama toko terbaru tampil
+    setState(() {});
     print('[LOAD] Shop name from Settings: $_shopName');
   }
 

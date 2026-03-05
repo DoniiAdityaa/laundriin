@@ -282,27 +282,29 @@ class _OrdersScreenState extends State<OrdersScreen> {
     required String hintText,
     required TextEditingController controller,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-          color: bgCard,
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: smRegular.copyWith(color: Colors.grey[400]),
+        prefixIcon: Icon(Icons.search, color: Colors.grey[400], size: 20),
+        filled: true,
+        fillColor: bgCard,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: gray200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ]),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          icon: const Icon(Icons.search, color: Colors.grey),
-          hintText: hintText,
-          hintStyle: smRegular,
-          border: InputBorder.none,
+          borderSide: BorderSide(color: gray200),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: gray200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: blue500, width: 1.5),
+        ),
+        isDense: true,
       ),
     );
   }
