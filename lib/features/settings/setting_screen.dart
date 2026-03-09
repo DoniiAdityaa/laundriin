@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:laundriin/features/settings/shop_information.dart';
+import 'package:laundriin/features/settings/team_menagement_screen.dart';
 import 'package:laundriin/features/settings/template_whatsaap_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:laundriin/ui/color.dart';
@@ -368,7 +369,7 @@ class _SettingScreenState extends State<SettingScreen> {
               _buildMenuCard(
                 icon: Icons.attach_money,
                 title: "Pengaturan Harga",
-                subtitle: "atur harga item kiloan dan non-kiloan",
+                subtitle: "kelola harga kiloan dan non-kiloan",
                 iconBgColor: blue100,
                 iconColor: blue500,
                 onTap: () {
@@ -385,7 +386,7 @@ class _SettingScreenState extends State<SettingScreen> {
               _buildMenuCard(
                 icon: Icons.chat_bubble_outline_outlined,
                 title: "Template Whatsapp",
-                subtitle: "buat pesan notifikasi kustom",
+                subtitle: "kelola pesan tempplate notifikasi",
                 iconBgColor: blue100,
                 iconColor: blue500,
                 onTap: () {
@@ -394,6 +395,22 @@ class _SettingScreenState extends State<SettingScreen> {
                       MaterialPageRoute(
                           builder: (context) =>
                               const TemplateWhatsaapScreen()));
+                },
+              ),
+
+              const SizedBox(height: 10),
+
+              _buildMenuCard(
+                icon: Icons.people_alt,
+                title: "Kelola Tim",
+                subtitle: "Kelola anggota tim toko",
+                iconBgColor: blue100,
+                iconColor: blue500,
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const TeamMenagementScreen()));
                 },
               ),
 

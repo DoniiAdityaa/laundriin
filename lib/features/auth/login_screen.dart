@@ -113,8 +113,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         alignment: Alignment.center,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(22),
-                          child: Image.asset("assets/images/logo.png",
-                              fit: BoxFit.cover),
+                          child: Image.asset("assets/images/logoApps.png",
+                              width: 68, fit: BoxFit.cover),
                         ),
                       ),
 
