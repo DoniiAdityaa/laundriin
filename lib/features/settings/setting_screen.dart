@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:laundriin/features/settings/shop_information.dart';
@@ -20,12 +21,61 @@ class SettingScreen extends StatefulWidget {
 class _SettingScreenState extends State<SettingScreen> {
   final TextEditingController _shopNameC =
       TextEditingController(text: "LAUNDRIIN");
+  final TextEditingController _usernameC = TextEditingController();
   String _appVersion = "1.0.0";
+
+  // Staff role state
+  bool _isStaff = false;
+  String _adminUid = '';
+  String _staffUsername = '';
+  String _staffEmail = '';
+  bool _isLoadingRole = true;
 
   @override
   void initState() {
     super.initState();
     _getAppVersion();
+    _checkUserRole();
+  }
+
+  Future<void> _checkUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    try {
+      final mappingDoc = await FirebaseFirestore.instance
+          .collection('userShopMapping')
+          .doc(uid)
+          .get();
+
+      if (mappingDoc.exists) {
+        // User adalah staff
+        final adminUid = mappingDoc.data()!['shopOwnerId'] as String;
+        final memberDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(adminUid)
+            .collection('members')
+            .doc(uid)
+            .get();
+
+        setState(() {
+          _isStaff = true;
+          _adminUid = adminUid;
+          _staffUsername = memberDoc.data()?['username'] ?? '';
+          _staffEmail = FirebaseAuth.instance.currentUser?.email ?? '';
+          _isLoadingRole = false;
+        });
+      } else {
+        setState(() {
+          _isStaff = false;
+          _isLoadingRole = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingRole = false;
+      });
+    }
   }
 
   Future<void> _getAppVersion() async {
@@ -336,6 +386,13 @@ class _SettingScreenState extends State<SettingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingRole) {
+      return Scaffold(
+        backgroundColor: bgApp,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: bgApp,
       body: SafeArea(
@@ -348,83 +405,9 @@ class _SettingScreenState extends State<SettingScreen> {
               const Text("Pengaturan", style: mBold),
               const SizedBox(height: 14),
 
-              // ===== Shop Information Section =====
-              _buildMenuCard(
-                  icon: Icons.store_rounded,
-                  title: 'Informasi Toko',
-                  subtitle: 'Kelola informasi toko Anda',
-                  iconBgColor: blue100,
-                  iconColor: blue500,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const ShopInformation()),
-                    );
-                  }),
+              if (_isStaff) ..._buildStaffSettings(),
 
-              const SizedBox(height: 14),
-
-              // ===== Menu Cards =====
-              _buildMenuCard(
-                icon: Icons.attach_money,
-                title: "Pengaturan Harga",
-                subtitle: "kelola harga kiloan dan non-kiloan",
-                iconBgColor: blue100,
-                iconColor: blue500,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PricingScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-
-              _buildMenuCard(
-                icon: Icons.chat_bubble_outline_outlined,
-                title: "Template Whatsapp",
-                subtitle: "kelola pesan tempplate notifikasi",
-                iconBgColor: blue100,
-                iconColor: blue500,
-                onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) =>
-                              const TemplateWhatsaapScreen()));
-                },
-              ),
-
-              const SizedBox(height: 10),
-
-              _buildMenuCard(
-                icon: Icons.people_alt,
-                title: "Kelola Tim",
-                subtitle: "Kelola anggota tim toko",
-                iconBgColor: blue100,
-                iconColor: blue500,
-                onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const TeamMenagementScreen()));
-                },
-              ),
-
-              const SizedBox(height: 10),
-
-              // ===== Debug: Delete All Orders (Development Only) =====
-              _buildMenuCard(
-                icon: Icons.delete_sweep_rounded,
-                title: "Hapus Semua Pesanan",
-                subtitle: "hapus semua data pesanan (debug)",
-                iconBgColor: const Color(0xFFFFEBEE),
-                iconColor: const Color(0xFFEF4444),
-                onTap: _deleteAllOrders,
-              ),
+              if (!_isStaff) ..._buildAdminSettings(),
 
               const SizedBox(height: 20),
 
@@ -465,10 +448,344 @@ class _SettingScreenState extends State<SettingScreen> {
     );
   }
 
+  // =========================
+  // Staff Settings (Akun Saya + Logout)
+  // =========================
+  List<Widget> _buildStaffSettings() {
+    return [
+      _buildStaffAccountCard(),
+    ];
+  }
+
+  // =========================
+  // Admin Settings (all menus)
+  // =========================
+  List<Widget> _buildAdminSettings() {
+    return [
+      // ===== Shop Information Section =====
+      _buildMenuCard(
+          icon: Icons.store_rounded,
+          title: 'Informasi Toko',
+          subtitle: 'Kelola informasi toko Anda',
+          iconBgColor: blue100,
+          iconColor: blue500,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ShopInformation()),
+            );
+          }),
+
+      const SizedBox(height: 14),
+
+      // ===== Menu Cards =====
+      _buildMenuCard(
+        icon: Icons.attach_money,
+        title: "Pengaturan Harga",
+        subtitle: "kelola harga kiloan dan non-kiloan",
+        iconBgColor: blue100,
+        iconColor: blue500,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PricingScreen(),
+            ),
+          );
+        },
+      ),
+      const SizedBox(height: 10),
+
+      _buildMenuCard(
+        icon: Icons.chat_bubble_outline_outlined,
+        title: "Template Whatsapp",
+        subtitle: "kelola pesan tempplate notifikasi",
+        iconBgColor: blue100,
+        iconColor: blue500,
+        onTap: () {
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const TemplateWhatsaapScreen()));
+        },
+      ),
+
+      const SizedBox(height: 10),
+
+      _buildMenuCard(
+        icon: Icons.people_alt,
+        title: "Kelola Tim",
+        subtitle: "Kelola anggota tim toko",
+        iconBgColor: blue100,
+        iconColor: blue500,
+        onTap: () {
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const TeamMenagementScreen()));
+        },
+      ),
+
+      const SizedBox(height: 10),
+
+      // ===== Debug: Delete All Orders (Development Only) =====
+      _buildMenuCard(
+        icon: Icons.delete_sweep_rounded,
+        title: "Hapus Semua Pesanan",
+        subtitle: "hapus semua data pesanan (debug)",
+        iconBgColor: const Color(0xFFFFEBEE),
+        iconColor: const Color(0xFFEF4444),
+        onTap: _deleteAllOrders,
+      ),
+    ];
+  }
+
   @override
   void dispose() {
     _shopNameC.dispose();
+    _usernameC.dispose();
     super.dispose();
+  }
+
+  // =========================
+  // Card: Akun Saya (Staff)
+  // =========================
+  Widget _buildStaffAccountCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: bgCard,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row: icon + title
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: blue100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.person_rounded,
+                  size: 22,
+                  color: blue600,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Akun Saya', style: smSemiBold),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Informasi akun Anda',
+                      style: xsRegular.copyWith(color: gray500),
+                    ),
+                  ],
+                ),
+              ),
+              // Badge Staff
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F7EE),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Staff',
+                  style: xsSemiBold.copyWith(
+                    color: const Color(0xFF16A34A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Divider(color: borderLight, height: 1),
+          const SizedBox(height: 16),
+
+          // Username row (editable)
+          _buildStaffInfoRow(
+            label: 'Username',
+            value: _staffUsername,
+            trailing: InkWell(
+              onTap: _showStaffEditUsernameDialog,
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: SvgPicture.asset(
+                  'assets/svg/mingcute_pencil-line.svg',
+                  width: 16,
+                  height: 16,
+                  colorFilter: ColorFilter.mode(blue500, BlendMode.srcIn),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Email row (read-only)
+          _buildStaffInfoRow(
+            label: 'Email',
+            value: _staffEmail,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // Staff Info Row
+  // =========================
+  Widget _buildStaffInfoRow({
+    required String label,
+    required String value,
+    Widget? trailing,
+  }) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            style: xsRegular.copyWith(color: gray500),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: sSemiBold.copyWith(color: textPrimary),
+          ),
+        ),
+        if (trailing != null) trailing,
+      ],
+    );
+  }
+
+  // =========================
+  // Dialog Edit Username (Staff)
+  // =========================
+  void _showStaffEditUsernameDialog() {
+    _usernameC.text = _staffUsername;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Edit Username', style: smSemiBold),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _usernameC,
+                textCapitalization: TextCapitalization.words,
+                style: sRegular.copyWith(color: textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Masukkan username',
+                  hintStyle: sRegular.copyWith(color: textMuted),
+                  filled: true,
+                  fillColor: bgInput,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: borderFocus, width: 1.2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF3F4F6),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Batal',
+                        style: sSemiBold.copyWith(
+                          color: const Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: blue500,
+                        elevation: 2,
+                        shadowColor: blue500.withOpacity(0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        final newName = _usernameC.text.trim();
+                        if (newName.isNotEmpty) {
+                          final uid =
+                              FirebaseAuth.instance.currentUser?.uid ?? '';
+                          // Update di members subcollection admin
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(_adminUid)
+                              .collection('members')
+                              .doc(uid)
+                              .set(
+                            {'username': newName},
+                            SetOptions(merge: true),
+                          );
+
+                          setState(() {
+                            _staffUsername = newName;
+                          });
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: Text(
+                        'Simpan',
+                        style: sSemiBold.copyWith(color: white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // =========================

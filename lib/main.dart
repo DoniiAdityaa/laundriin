@@ -31,8 +31,21 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  Key _retryKey = UniqueKey();
+
+  void _retry() {
+    setState(() {
+      _retryKey = UniqueKey();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,12 +77,10 @@ class MyApp extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      // User sudah login, load data toko dulu baru ke dashboard
+      // User sudah login, cek apakah staff yang dihapus
       return FutureBuilder(
-        future: Future.wait([
-          ShopSettings.loadFromFirestore(user.uid),
-          DeliveryConfig.loadFromDatabase(user.uid),
-        ]),
+        key: _retryKey,
+        future: _checkAndLoadUser(user.uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
@@ -87,19 +98,21 @@ class MyApp extends StatelessWidget {
                     const Icon(Icons.error_outline,
                         size: 48, color: Colors.red),
                     const SizedBox(height: 16),
-                    const Text('Gagal memuat data toko'),
+                    Text('Gagal memuat data toko\n${snapshot.error}',
+                        textAlign: TextAlign.center),
                     const SizedBox(height: 8),
                     ElevatedButton(
-                      onPressed: () {
-                        // Force rebuild
-                        (context as Element).markNeedsBuild();
-                      },
+                      onPressed: _retry,
                       child: const Text('Coba Lagi'),
                     ),
                   ],
                 ),
               ),
             );
+          }
+          // Jika false = staff dihapus, arahkan ke login
+          if (snapshot.data == false) {
+            return const LoginScreen();
           }
           return const MainNavigation();
         },
@@ -108,5 +121,54 @@ class MyApp extends StatelessWidget {
       // User belum login, ke login screen
       return const LoginScreen();
     }
+  }
+
+  /// Cek apakah user masih valid (staff belum dihapus), lalu load data toko
+  Future<bool> _checkAndLoadUser(String uid) async {
+    final mappingDoc = await FirebaseFirestore.instance
+        .collection('userShopMapping')
+        .doc(uid)
+        .get();
+
+    if (mappingDoc.exists) {
+      // User adalah staff
+      final adminUid = mappingDoc.data()!['shopOwnerId'];
+      final memberDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(adminUid)
+          .collection('members')
+          .doc(uid)
+          .get();
+
+      if (!memberDoc.exists) {
+        // Staff sudah dihapus → sign out
+        await FirebaseAuth.instance.signOut();
+        return false;
+      }
+
+      // Staff valid, load data toko admin
+      await Future.wait([
+        ShopSettings.loadFromFirestore(adminUid),
+        DeliveryConfig.loadFromDatabase(adminUid),
+      ]);
+    } else {
+      // Tidak ada mapping → cek apakah benar admin (punya doc users/{uid})
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (!userDoc.exists) {
+        // Bukan admin, bukan staff aktif → akun orphan
+        await FirebaseAuth.instance.signOut();
+        return false;
+      }
+
+      // Admin valid, load data toko sendiri
+      await Future.wait([
+        ShopSettings.loadFromFirestore(uid),
+        DeliveryConfig.loadFromDatabase(uid),
+      ]);
+    }
+
+    return true;
   }
 }

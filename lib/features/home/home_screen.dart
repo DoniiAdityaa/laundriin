@@ -41,6 +41,20 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription? _ordersSubscription;
   StreamSubscription? _incomeSubscription;
 
+  bool _isStaff = false;
+
+  Future<void> _checkIfStaff() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final mappingDoc = await FirebaseFirestore.instance
+        .collection('userShopMapping')
+        .doc(uid)
+        .get();
+    if (mappingDoc.exists) {
+      setState(() => _isStaff = true);
+    }
+  }
+
   String _getFormattedDate() {
     final now = DateTime.now();
     final formatter = DateFormat('EEEE, dd MMMM yyyy', 'id_ID');
@@ -54,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadShopName();
     _setupRealtimeListeners();
     _setupIncomeListener();
+    _checkIfStaff();
   }
 
   @override
@@ -253,7 +268,27 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_shopName, style: mBold),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_shopName, style: mBold),
+                    if (_isStaff)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F7EE),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'Staff',
+                          style: xsSemiBold.copyWith(
+                            color: const Color(0xFF16A34A),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 6),
                 Text(
                   _getFormattedDate(),

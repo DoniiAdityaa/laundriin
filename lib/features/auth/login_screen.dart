@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/ui/typography.dart';
@@ -33,10 +34,68 @@ class _LoginScreenState extends State<LoginScreen> {
 
       try {
         // Login dengan Firebase
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
+        final credential =
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+
+        final uid = credential.user!.uid;
+
+        // Cek apakah user ini staff atau admin
+        final mappingDoc = await FirebaseFirestore.instance
+            .collection('userShopMapping')
+            .doc(uid)
+            .get();
+
+        if (mappingDoc.exists) {
+          // User adalah staff — cek apakah masih terdaftar di members/
+          final adminUid = mappingDoc.data()!['shopOwnerId'];
+          final memberDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(adminUid)
+              .collection('members')
+              .doc(uid)
+              .get();
+
+          if (!memberDoc.exists) {
+            // Staff sudah dihapus dari tim → tolak
+            await FirebaseAuth.instance.signOut();
+            if (mounted) {
+              setState(() => _isLoading = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Akun Anda sudah tidak aktif. Hubungi admin.'),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+        } else {
+          // Tidak ada mapping → cek apakah benar admin (punya doc users/{uid})
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .get();
+
+          if (!userDoc.exists) {
+            // Bukan admin, bukan staff aktif → akun orphan → tolak
+            await FirebaseAuth.instance.signOut();
+            if (mounted) {
+              setState(() => _isLoading = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Akun tidak aktif.'),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+        }
 
         if (mounted) {
           Navigator.pushReplacement(

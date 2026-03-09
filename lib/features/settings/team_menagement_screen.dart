@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/features/settings/add_member_screen.dart';
 import 'package:laundriin/features/settings/edit_member_screen.dart';
 import 'package:laundriin/ui/color.dart';
@@ -13,27 +16,80 @@ class TeamMenagementScreen extends StatefulWidget {
 }
 
 class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
-  // === Dummy data (nanti diganti Firebase) ===
-  String _adminUsername = 'Doni';
-  final String _adminEmail = 'doni@mail.com';
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final String _adminEmail = FirebaseAuth.instance.currentUser?.email ?? '';
   final TextEditingController _usernameC = TextEditingController();
 
-  final List<Map<String, String>> _members = [
-    // Dummy staff — nanti dari Firestore
-    {'username': 'Budi', 'email': 'budi@mail.com'},
-    {'username': 'Rina', 'email': 'rina@mail.com'},
-  ];
+  String _adminUsername = '';
+  List<Map<String, dynamic>> _members = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _usernameC.text = _adminUsername;
+    _loadTeamData();
   }
 
   @override
   void dispose() {
     _usernameC.dispose();
     super.dispose();
+  }
+
+  /// Load data admin username + staff dari Firestore
+  Future<void> _loadTeamData() async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(_userId).get();
+
+      // Admin username: ambil dari users/{uid}/username
+      // Kalau belum ada, pakai ownerName sebagai default dan simpan
+      if (userDoc.exists) {
+        final data = userDoc.data() ?? {};
+        if (data['username'] != null &&
+            data['username'].toString().isNotEmpty) {
+          _adminUsername = data['username'];
+        } else {
+          _adminUsername = ShopSettings.ownerName;
+          // Auto-save username pertama kali
+          await _firestore.collection('users').doc(_userId).set(
+            {'username': _adminUsername},
+            SetOptions(merge: true),
+          );
+        }
+      } else {
+        _adminUsername = ShopSettings.ownerName;
+      }
+
+      // Load staff dari members/ subcollection
+      final staffSnapshot = await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('members')
+          .where('role', isEqualTo: 'staff')
+          .get();
+
+      final staffList = staffSnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'uid': doc.id,
+          'username': data['username'] ?? '',
+          'email': data['email'] ?? '',
+        };
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _members = staffList;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('[ERROR] Load team data: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -53,16 +109,26 @@ class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ===== Card Akun Saya =====
-              _buildMyAccountCard(),
-              const SizedBox(height: 16),
+              // ===== Loading atau Content =====
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.only(top: 60),
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else ...[
+                // ===== Card Akun Saya =====
+                _buildMyAccountCard(),
+                const SizedBox(height: 16),
 
-              // ===== Card Anggota Tim =====
-              _buildTeamMembersCard(),
-              const SizedBox(height: 24),
+                // ===== Card Anggota Tim =====
+                _buildTeamMembersCard(),
+                const SizedBox(height: 24),
 
-              // ===== Tombol Tambah Anggota =====
-              _buildAddMemberButton(),
+                // ===== Tombol Tambah Anggota =====
+                _buildAddMemberButton(),
+              ],
             ],
           ),
         ),
@@ -314,9 +380,15 @@ class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         final newName = _usernameC.text.trim();
                         if (newName.isNotEmpty) {
+                          // Simpan ke Firestore users/{uid}/username
+                          await _firestore.collection('users').doc(_userId).set(
+                            {'username': newName},
+                            SetOptions(merge: true),
+                          );
+
                           setState(() {
                             _adminUsername = newName;
                           });
@@ -419,16 +491,18 @@ class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
                   _buildMemberTile(
                     username: member['username'] ?? '',
                     email: member['email'] ?? '',
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => EditMemberScreen(
+                            memberUid: member['uid'] ?? '',
                             username: member['username'] ?? '',
                             email: member['email'] ?? '',
                           ),
                         ),
                       );
+                      if (result == true) _loadTeamData();
                     },
                     onDelete: () => _showDeleteMemberDialog(index),
                   ),
@@ -645,19 +719,43 @@ class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _members.removeAt(index);
-                        });
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content:
-                                Text('${member['username']} dihapus dari tim'),
-                            backgroundColor: Colors.green,
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
+                        try {
+                          // Hapus dari Firestore members/
+                          await _firestore
+                              .collection('users')
+                              .doc(_userId)
+                              .collection('members')
+                              .doc(member['uid'])
+                              .delete();
+
+                          // Hapus userShopMapping
+                          await _firestore
+                              .collection('userShopMapping')
+                              .doc(member['uid'])
+                              .delete();
+
+                          setState(() {
+                            _members.removeAt(index);
+                          });
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  '${member['username']} dihapus dari tim'),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        } catch (e) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Gagal menghapus: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
                       },
                       child: Text(
                         'Hapus',

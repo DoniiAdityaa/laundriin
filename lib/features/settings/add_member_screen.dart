@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 
@@ -13,6 +15,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   final _usernameC = TextEditingController();
   final _emailC = TextEditingController();
   final _passwordC = TextEditingController();
+  final _adminPasswordC = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -22,10 +25,12 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
     _usernameC.dispose();
     _emailC.dispose();
     _passwordC.dispose();
+    _adminPasswordC.dispose();
     super.dispose();
   }
 
-  void _saveMember() {
+  /// Tampilkan dialog minta password admin sebelum proses
+  void _confirmAndSave() {
     final username = _usernameC.text.trim();
     final email = _emailC.text.trim();
     final password = _passwordC.text.trim();
@@ -48,16 +53,250 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
       return;
     }
 
-    // TODO: Nanti sambungkan ke Firebase Auth + Firestore
+    // Minta password admin untuk konfirmasi
+    _adminPasswordC.clear();
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Konfirmasi Password', style: smSemiBold),
+              const SizedBox(height: 8),
+              Text(
+                'Masukkan password akun Anda untuk melanjutkan',
+                style: xsRegular.copyWith(color: gray500),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _adminPasswordC,
+                obscureText: true,
+                style: sRegular.copyWith(color: textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Password Anda',
+                  hintStyle: sRegular.copyWith(color: textMuted),
+                  filled: true,
+                  fillColor: bgInput,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: borderFocus, width: 1.2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF3F4F6),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Batal',
+                        style: sSemiBold.copyWith(
+                          color: const Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: blue500,
+                        elevation: 2,
+                        shadowColor: blue500.withOpacity(0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () {
+                        if (_adminPasswordC.text.trim().isEmpty) return;
+                        Navigator.pop(context);
+                        _saveMember(_adminPasswordC.text.trim());
+                      },
+                      child: Text(
+                        'Lanjutkan',
+                        style: sSemiBold.copyWith(color: white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _saveMember(String adminPassword) async {
+    final username = _usernameC.text.trim();
+    final email = _emailC.text.trim();
+    final password = _passwordC.text.trim();
+
     setState(() => _isLoading = true);
 
-    // Simulasi delay (nanti diganti logic Firebase)
-    Future.delayed(const Duration(seconds: 1), () {
+    // Pastikan admin masih login
+    var currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      setState(() => _isLoading = false);
+      _showSnackBar(
+        'Sesi login terputus. Silakan logout dan login ulang.',
+        isError: true,
+      );
+      return;
+    }
+
+    final adminEmail = currentUser.email!;
+    final adminUid = currentUser.uid;
+
+    // Helper: pastikan admin selalu login balik
+    Future<void> ensureAdminLogin() async {
+      if (FirebaseAuth.instance.currentUser?.uid != adminUid) {
+        try {
+          await FirebaseAuth.instance.signOut();
+        } catch (_) {}
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: adminEmail,
+          password: adminPassword,
+        );
+      }
+    }
+
+    try {
+      // Bikin akun Firebase Auth baru untuk staff
+      final staffCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      final staffUid = staffCredential.user!.uid;
+
+      final firestore = FirebaseFirestore.instance;
+
+      // Staff di members/ subcollection admin
+      await firestore
+          .collection('users')
+          .doc(adminUid)
+          .collection('members')
+          .doc(staffUid)
+          .set({
+        'username': username,
+        'email': email,
+        'role': 'staff',
+        'joinedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Mapping supaya staff tahu nyambung ke toko mana
+      await firestore.collection('userShopMapping').doc(staffUid).set({
+        'shopOwnerId': adminUid,
+        'role': 'staff',
+      });
+
+      // Login balik ke akun admin
+      await ensureAdminLogin();
+
       if (!mounted) return;
       setState(() => _isLoading = false);
       _showSnackBar('$username berhasil ditambahkan');
       Navigator.pop(context);
-    });
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        // Re-aktivasi: login sebagai staff lama → tulis ulang doc
+        try {
+          await FirebaseAuth.instance.signOut();
+          final staffCredential =
+              await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+          final staffUid = staffCredential.user!.uid;
+
+          final firestore = FirebaseFirestore.instance;
+          await firestore
+              .collection('users')
+              .doc(adminUid)
+              .collection('members')
+              .doc(staffUid)
+              .set({
+            'username': username,
+            'email': email,
+            'role': 'staff',
+            'joinedAt': FieldValue.serverTimestamp(),
+          });
+
+          await firestore.collection('userShopMapping').doc(staffUid).set({
+            'shopOwnerId': adminUid,
+            'role': 'staff',
+          });
+
+          await ensureAdminLogin();
+
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          _showSnackBar('$username berhasil diaktifkan kembali');
+          Navigator.pop(context);
+          return;
+        } catch (_) {
+          // Gagal → pastikan admin login balik
+          try {
+            await ensureAdminLogin();
+          } catch (_) {}
+
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          _showSnackBar(
+            'Email sudah terdaftar dan password tidak cocok. Gunakan email lain.',
+            isError: true,
+          );
+          return;
+        }
+      }
+
+      // Error lain → pastikan admin login balik
+      try {
+        await ensureAdminLogin();
+      } catch (_) {}
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      String message = 'Gagal menambahkan anggota';
+      if (e.code == 'invalid-email') {
+        message = 'Format email tidak valid';
+      } else if (e.code == 'weak-password') {
+        message = 'Password terlalu lemah';
+      }
+      _showSnackBar(message, isError: true);
+    } catch (e) {
+      // Error umum → pastikan admin login balik
+      try {
+        await ensureAdminLogin();
+      } catch (_) {}
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showSnackBar('Error: $e', isError: true);
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -104,7 +343,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                     elevation: 4,
                     shadowColor: blue500.withOpacity(0.3),
                   ),
-                  onPressed: _isLoading ? null : _saveMember,
+                  onPressed: _isLoading ? null : _confirmAndSave,
                   child: _isLoading
                       ? const SizedBox(
                           height: 24,

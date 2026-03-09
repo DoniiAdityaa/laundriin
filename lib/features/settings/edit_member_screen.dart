@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 
 class EditMemberScreen extends StatefulWidget {
+  final String memberUid;
   final String username;
   final String email;
 
   const EditMemberScreen({
     super.key,
+    required this.memberUid,
     required this.username,
     required this.email,
   });
@@ -18,10 +22,9 @@ class EditMemberScreen extends StatefulWidget {
 
 class _EditMemberScreenState extends State<EditMemberScreen> {
   final _usernameC = TextEditingController();
-  final _passwordC = TextEditingController();
 
   bool _isLoading = false;
-  bool _obscurePassword = true;
+  bool _isSendingReset = false;
 
   @override
   void initState() {
@@ -32,20 +35,14 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   @override
   void dispose() {
     _usernameC.dispose();
-    _passwordC.dispose();
     super.dispose();
   }
 
   void _saveMember() {
     final username = _usernameC.text.trim();
-    final password = _passwordC.text.trim();
 
     if (username.isEmpty) {
       _showSnackBar('Username tidak boleh kosong', isError: true);
-      return;
-    }
-    if (password.isNotEmpty && password.length < 6) {
-      _showSnackBar('Password minimal 6 karakter', isError: true);
       return;
     }
 
@@ -87,9 +84,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                password.isNotEmpty
-                    ? 'Username dan password $username akan diperbarui.'
-                    : 'Username $username akan diperbarui.',
+                'Username $username akan diperbarui.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 14,
@@ -150,16 +145,45 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
     );
   }
 
-  void _performSave() {
-    // TODO: Nanti sambungkan ke Firebase
+  Future<void> _performSave() async {
     setState(() => _isLoading = true);
 
-    Future.delayed(const Duration(seconds: 1), () {
+    try {
+      final adminUid = FirebaseAuth.instance.currentUser!.uid;
+      final newUsername = _usernameC.text.trim();
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(adminUid)
+          .collection('members')
+          .doc(widget.memberUid)
+          .update({'username': newUsername});
+
       if (!mounted) return;
       setState(() => _isLoading = false);
-      _showSnackBar('${_usernameC.text.trim()} berhasil diperbarui');
-      Navigator.pop(context);
-    });
+      _showSnackBar('$newUsername berhasil diperbarui');
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showSnackBar('Gagal menyimpan: $e', isError: true);
+    }
+  }
+
+  Future<void> _sendPasswordReset() async {
+    setState(() => _isSendingReset = true);
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: widget.email,
+      );
+      if (!mounted) return;
+      setState(() => _isSendingReset = false);
+      _showSnackBar('Link reset password dikirim ke ${widget.email}');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSendingReset = false);
+      _showSnackBar('Gagal mengirim: $e', isError: true);
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -425,57 +449,37 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
           const SizedBox(height: 16),
 
           // ===== Reset Password =====
-          Text('Password Baru', style: smBold),
+          Text('Reset Password', style: smBold),
           const SizedBox(height: 4),
           Text(
-            'Kosongkan jika tidak ingin mengubah password',
+            'Kirim link reset password ke email anggota',
             style: xsRegular.copyWith(color: gray400),
           ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _passwordC,
-            obscureText: _obscurePassword,
-            style: sRegular.copyWith(color: textPrimary),
-            decoration: InputDecoration(
-              hintText: 'Minimal 6 karakter',
-              hintStyle: sRegular.copyWith(color: textMuted),
-              prefixIcon: Padding(
-                padding: const EdgeInsets.only(left: 14, right: 10),
-                child:
-                    Icon(Icons.lock_outline_rounded, size: 20, color: gray400),
-              ),
-              prefixIconConstraints:
-                  const BoxConstraints(minWidth: 0, minHeight: 0),
-              suffixIcon: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    size: 20,
-                    color: gray400,
-                  ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: blue300),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              filled: true,
-              fillColor: bgInput,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 14,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: borderLight),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: borderFocus, width: 1.2),
+              onPressed: _isSendingReset ? null : _sendPasswordReset,
+              icon: _isSendingReset
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(blue500),
+                      ),
+                    )
+                  : Icon(Icons.email_outlined, size: 20, color: blue500),
+              label: Text(
+                _isSendingReset ? 'Mengirim...' : 'Kirim Link Reset Password',
+                style: sSemiBold.copyWith(color: blue500),
               ),
             ),
           ),
