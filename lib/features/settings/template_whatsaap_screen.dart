@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
+import 'dart:async';
 
 class TemplateWhatsaapScreen extends StatefulWidget {
   const TemplateWhatsaapScreen({super.key});
@@ -16,54 +19,59 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
   String _selectedCategory = 'Semua';
   final List<String> _categories = [
     'Semua',
-    'Proses',
     'Menunggu',
+    'Proses',
     'Selesai',
   ];
 
-  // Template data (dummy, nanti dari Firebase)
-  final List<Map<String, dynamic>> _templates = [
-    {
-      'id': '1',
-      'title': 'Konfirmasi Pesanan',
-      'category': 'Proses',
-      'message':
-          'Halo {nama}, pesanan laundry Anda telah kami terima ✅\n\nNo. Pesanan: #{orderId}\nTotal: Rp {harga}\nEstimasi selesai: {estimasi}\n\nTerima kasih telah memilih layanan kami! 🫧',
-      'isActive': true,
-    },
-    {
-      'id': '2',
-      'title': 'Pesanan Sedang Diproses',
-      'category': 'Proses',
-      'message':
-          'Halo {nama}, pesanan laundry Anda sedang kami proses 🧺\n\nNo. Pesanan: #{orderId}\nLayanan: {layanan}\nBerat: {berat}\n\nMohon ditunggu ya, kami akan kabari setelah selesai! 💪',
-      'isActive': true,
-    },
-    {
-      'id': '3',
-      'title': 'Pesanan Siap Diambil',
-      'category': 'Menunggu',
-      'message':
-          'Halo {nama}, pesanan laundry Anda sudah selesai dan siap diambil! 🎉\n\nNo. Pesanan: #{orderId}\nTotal: Rp {harga}\n\nSilakan ambil di toko kami. Ditunggu ya! 😊',
-      'isActive': true,
-    },
-    {
-      'id': '4',
-      'title': 'Reminder Pengambilan',
-      'category': 'Menunggu',
-      'message':
-          'Halo {nama}, ini pengingat bahwa pesanan laundry Anda sudah siap sejak {tanggal} ⏰\n\nNo. Pesanan: #{orderId}\n\nMohon segera diambil ya. Terima kasih! 🙏',
-      'isActive': true,
-    },
-    {
-      'id': '5',
-      'title': 'Promo Mingguan',
-      'category': 'Selesai',
-      'message':
-          'Halo {nama}! 🌟\n\nAda promo spesial minggu ini:\n🧺 Diskon 20% untuk cuci kiloan\n👔 Gratis setrika untuk 5kg+\n\nYuk, serahkan cucian Anda ke kami! 💙',
-      'isActive': false,
-    },
-  ];
+  // Template data dari Firebase
+  List<Map<String, dynamic>> _templates = [];
+  bool _isLoading = true;
+  StreamSubscription? _templateSubscription;
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String get _userId => ShopSettings.shopOwnerId;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupTemplateListener();
+  }
+
+  @override
+  void dispose() {
+    _templateSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _setupTemplateListener() {
+    _templateSubscription = _firestore
+        .collection('shops')
+        .doc(_userId)
+        .collection('whatsappTemplates')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          _templates = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              'title': data['title'] ?? '',
+              'category': data['category'] ?? 'Proses',
+              'message': data['message'] ?? '',
+              'isActive': data['isActive'] ?? true,
+            };
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    }, onError: (e) {
+      print('[TEMPLATE] Error: $e');
+      if (mounted) setState(() => _isLoading = false);
+    });
+  }
 
   // Variabel yang bisa digunakan
   final List<Map<String, String>> _variables = [
@@ -119,9 +127,9 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
                     children: [
                       _buildTab("Semua", 0),
                       const SizedBox(width: 6),
-                      _buildTab("Proses", 1),
+                      _buildTab("Menunggu", 1),
                       const SizedBox(width: 6),
-                      _buildTab("Menunggu", 2),
+                      _buildTab("Proses", 2),
                       const SizedBox(width: 6),
                       _buildTab("Selesai", 3),
                     ],
@@ -133,17 +141,20 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
 
             // ===== TEMPLATE LIST =====
             Expanded(
-              child: _filteredTemplates.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      itemCount: _filteredTemplates.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final template = _filteredTemplates[index];
-                        return _buildTemplateCard(template);
-                      },
-                    ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredTemplates.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                          itemCount: _filteredTemplates.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final template = _filteredTemplates[index];
+                            return _buildTemplateCard(template);
+                          },
+                        ),
             ),
           ],
         ),
@@ -844,7 +855,7 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Nama template
+                        // Judul Template
                         Text('Judul Template',
                             style: smBold.copyWith(
                                 color: textPrimary, fontSize: 13)),
@@ -908,6 +919,26 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? _getCategoryColor(cat)
+                                                .withOpacity(0.15)
+                                            : gray100,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Center(
+                                        child: SvgPicture.asset(
+                                          _getCategoryIcon(cat),
+                                          width: 12,
+                                          color: isSelected
+                                              ? _getCategoryColor(cat)
+                                              : gray400,
+                                        ),
+                                      ),
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
                                       cat,
@@ -1052,36 +1083,14 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
                           return;
                         }
 
-                        setState(() {
-                          if (isEdit) {
-                            template['title'] = titleC.text.trim();
-                            template['category'] = selectedCategory;
-                            template['message'] = messageC.text.trim();
-                          } else {
-                            _templates.add({
-                              'id': DateTime.now()
-                                  .millisecondsSinceEpoch
-                                  .toString(),
-                              'title': titleC.text.trim(),
-                              'category': selectedCategory,
-                              'message': messageC.text.trim(),
-                              'isActive': true,
-                            });
-                          }
-                        });
-
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(isEdit
-                                ? 'Template berhasil diperbarui'
-                                : 'Template berhasil dibuat'),
-                            backgroundColor: const Color(0xFF25D366),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
+                        _saveTemplate(
+                          id: isEdit ? template['id'] : null,
+                          title: titleC.text.trim(),
+                          category: selectedCategory,
+                          message: messageC.text.trim(),
+                          isEdit: isEdit,
                         );
+                        Navigator.pop(ctx);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: blue500,
@@ -1162,20 +1171,8 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        setState(() {
-                          _templates
-                              .removeWhere((t) => t['id'] == template['id']);
-                        });
+                        _deleteTemplate(template['id']);
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Template berhasil dihapus'),
-                            backgroundColor: const Color(0xFF25D366),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
-                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFEF4444),
@@ -1196,6 +1193,94 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
         ),
       ),
     );
+  }
+
+  // ===== FIREBASE CRUD =====
+  Future<void> _saveTemplate({
+    String? id,
+    required String title,
+    required String category,
+    required String message,
+    required bool isEdit,
+  }) async {
+    try {
+      final data = {
+        'title': title,
+        'category': category,
+        'message': message,
+        'isActive': true,
+      };
+
+      if (isEdit && id != null) {
+        await _firestore
+            .collection('shops')
+            .doc(_userId)
+            .collection('whatsappTemplates')
+            .doc(id)
+            .update(data);
+      } else {
+        data['createdAt'] = FieldValue.serverTimestamp();
+        await _firestore
+            .collection('shops')
+            .doc(_userId)
+            .collection('whatsappTemplates')
+            .add(data);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isEdit
+                ? 'Template berhasil diperbarui'
+                : 'Template berhasil dibuat'),
+            backgroundColor: const Color(0xFF25D366),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menyimpan template: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteTemplate(String id) async {
+    try {
+      await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('whatsappTemplates')
+          .doc(id)
+          .delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Template berhasil dihapus'),
+            backgroundColor: const Color(0xFF25D366),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menghapus template: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // ===== HELPERS =====

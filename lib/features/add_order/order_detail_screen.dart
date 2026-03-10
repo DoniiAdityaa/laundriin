@@ -719,21 +719,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final speed = _orderData['speed'] ?? '';
     final createdAt = _orderData['createdAt'] as Timestamp?;
 
-    // Get default category based on current status
-    final defaultCategory = _getDefaultCategoryForStatus(_currentStatus);
-
-    // Get templates
-    final templates = _getDefaultTemplates();
-
-    // Filter templates by default category
-    final matchingTemplates =
-        templates.where((t) => t['category'] == defaultCategory).toList();
-    final allTemplates = templates;
-
-    // Select first matching template
-    Map<String, dynamic>? selectedTemplate =
-        matchingTemplates.isNotEmpty ? matchingTemplates.first : null;
-
     // Service display
     final serviceType = _orderData['serviceType'] ?? '';
     String serviceLabel = serviceType == 'washComplete'
@@ -752,7 +737,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
 
     // Replace variables in message
-    String _fillTemplate(String message) {
+    String fillTemplate(String message) {
       return message
           .replaceAll('{nama}', customerName)
           .replaceAll('{orderId}', orderId.toString())
@@ -764,14 +749,53 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           .replaceAll('{berat}', '$weight kg');
     }
 
+    // Default category based on order status
+    final defaultCategory = _getDefaultCategoryForStatus(_currentStatus);
+
+    List<Map<String, dynamic>> allTemplates = [];
+    Map<String, dynamic>? selectedTemplate;
+    bool isLoadingTemplates = true;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
+          // Load templates from Firebase on first build
+          if (isLoadingTemplates) {
+            isLoadingTemplates = false;
+            _firestore
+                .collection('shops')
+                .doc(_userId)
+                .collection('whatsappTemplates')
+                .orderBy('createdAt', descending: true)
+                .get()
+                .then((snapshot) {
+              final templates = snapshot.docs.map((doc) {
+                final data = doc.data();
+                return {
+                  'id': doc.id,
+                  'title': data['title'] ?? '',
+                  'category': data['category'] ?? 'Proses',
+                  'message': data['message'] ?? '',
+                };
+              }).toList();
+
+              // Filter only templates matching current order status
+              final matching = templates
+                  .where((t) => t['category'] == defaultCategory)
+                  .toList();
+
+              setModalState(() {
+                allTemplates = matching;
+                selectedTemplate = matching.isNotEmpty ? matching.first : null;
+              });
+            });
+          }
+
           final filledMessage = selectedTemplate != null
-              ? _fillTemplate(selectedTemplate!['message'] as String)
+              ? fillTemplate(selectedTemplate!['message'] as String)
               : '';
 
           return Container(
@@ -860,58 +884,101 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         Text('Pilih Template',
                             style: smSemiBold.copyWith(fontSize: 13)),
                         const SizedBox(height: 10),
-                        SizedBox(
-                          height: 38,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: allTemplates.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 8),
-                            itemBuilder: (context, index) {
-                              final t = allTemplates[index];
-                              final isSelected =
-                                  selectedTemplate?['id'] == t['id'];
-                              final cat = t['category'] as String;
-                              return GestureDetector(
-                                onTap: () {
-                                  setModalState(() {
-                                    selectedTemplate = t;
-                                  });
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? _getTemplateCategoryColor(cat)
-                                            .withOpacity(0.12)
-                                        : gray50,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
+                        if (allTemplates.isEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: gray50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Belum ada template.\nBuat di Settings > Template WhatsApp.',
+                                textAlign: TextAlign.center,
+                                style: sRegular.copyWith(color: gray400),
+                              ),
+                            ),
+                          )
+                        else
+                          SizedBox(
+                            height: 38,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: allTemplates.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final t = allTemplates[index];
+                                final isSelected =
+                                    selectedTemplate?['id'] == t['id'];
+                                final cat = t['category'] as String;
+                                return GestureDetector(
+                                  onTap: () {
+                                    setModalState(() {
+                                      selectedTemplate = t;
+                                    });
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
                                       color: isSelected
                                           ? _getTemplateCategoryColor(cat)
-                                          : gray200,
-                                      width: isSelected ? 1.5 : 1,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      t['title'] as String,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                              .withOpacity(0.12)
+                                          : gray50,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
                                         color: isSelected
                                             ? _getTemplateCategoryColor(cat)
-                                            : gray500,
+                                            : gray200,
+                                        width: isSelected ? 1.5 : 1,
                                       ),
                                     ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? _getTemplateCategoryColor(cat)
+                                                    .withOpacity(0.15)
+                                                : gray100,
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Center(
+                                            child: SvgPicture.asset(
+                                              _getTemplateCategoryIcon(cat),
+                                              width: 12,
+                                              color: isSelected
+                                                  ? _getTemplateCategoryColor(
+                                                      cat)
+                                                  : gray400,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          t['title'] as String,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: isSelected
+                                                ? _getTemplateCategoryColor(cat)
+                                                : gray500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
-                        ),
                         const SizedBox(height: 18),
 
                         // Preview label
@@ -1122,61 +1189,41 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Color _getTemplateCategoryColor(String category) {
     switch (category) {
-      case 'Konfirmasi':
-        return const Color(0xFF3B82F6);
       case 'Proses':
-        return const Color(0xFFF97316);
-      case 'Siap Ambil':
-        return const Color(0xFF25D366);
-      case 'Reminder':
-        return const Color(0xFFF59E0B);
-      case 'Promo':
-        return const Color(0xFF8B5CF6);
+        return const Color(0xFF2F5FE3);
+      case 'Menunggu':
+        return const Color(0xFF9A6A00);
+      case 'Selesai':
+        return const Color(0xFF1F8F5F);
       default:
         return gray500;
+    }
+  }
+
+  String _getTemplateCategoryIcon(String category) {
+    switch (category) {
+      case 'Proses':
+        return 'assets/svg/reload.svg';
+      case 'Menunggu':
+        return 'assets/svg/time-left.svg';
+      case 'Selesai':
+        return 'assets/svg/check-mark-2.svg';
+      default:
+        return 'assets/svg/communication-2.svg';
     }
   }
 
   String _getDefaultCategoryForStatus(String status) {
     switch (status) {
       case 'pending':
-        return 'Konfirmasi';
-      case 'process':
         return 'Proses';
+      case 'process':
+        return 'Menunggu';
       case 'completed':
-        return 'Siap Ambil';
+        return 'Selesai';
       default:
-        return 'Konfirmasi';
+        return 'Proses';
     }
-  }
-
-  List<Map<String, dynamic>> _getDefaultTemplates() {
-    return [
-      {
-        'id': '1',
-        'title': 'Konfirmasi Pesanan',
-        'category': 'Konfirmasi',
-        'message':
-            'Halo {nama}, pesanan laundry Anda telah kami terima ✅\n\nNo. Pesanan: #{orderId}\nTotal: Rp {harga}\nEstimasi selesai: {estimasi}\n\nTerima kasih telah memilih layanan kami! 🫧',
-        'isActive': true,
-      },
-      {
-        'id': '2',
-        'title': 'Pesanan Sedang Diproses',
-        'category': 'Proses',
-        'message':
-            'Halo {nama}, pesanan laundry Anda sedang kami proses 🧺\n\nNo. Pesanan: #{orderId}\nLayanan: {layanan}\nBerat: {berat}\n\nMohon ditunggu ya, kami akan kabari setelah selesai! 💪',
-        'isActive': true,
-      },
-      {
-        'id': '3',
-        'title': 'Pesanan Siap Diambil',
-        'category': 'Siap Ambil',
-        'message':
-            'Halo {nama}, pesanan laundry Anda sudah selesai dan siap diambil! 🎉\n\nNo. Pesanan: #{orderId}\nTotal: Rp {harga}\n\nSilakan ambil di toko kami. Ditunggu ya! 😊',
-        'isActive': true,
-      },
-    ];
   }
 
   // ===== REUSABLE SECTION CARD =====

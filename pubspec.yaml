@@ -89,6 +89,7 @@ dependencies:
   envied: ^1.0.0
   dotted_decoration: ^2.0.0
   path_provider: ^2.1.4
+  share_plus: ^10.1.4
   flutter_downloader: ^1.11.8
   equatable: ^2.0.5
   flutter_pdfview: ^1.4.0

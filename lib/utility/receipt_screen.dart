@@ -1,13 +1,21 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/printer_service/printer_manager.dart';
 import 'package:laundriin/printer_service/receipt_genarator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ReceiptScreen extends StatefulWidget {
   final String orderId;
@@ -71,6 +79,8 @@ class ReceiptItem {
 
 class _ReceiptScreenState extends State<ReceiptScreen> {
   bool _isPrinting = false;
+  bool _isSharing = false;
+  final GlobalKey _receiptKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +99,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   const SizedBox(height: 24),
 
                   // Receipt Container
-                  _buildReceiptContainer(),
+                  RepaintBoundary(
+                    key: _receiptKey,
+                    child: _buildReceiptContainer(),
+                  ),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -503,25 +516,80 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           const SizedBox(height: 12),
           _floatingButton(
             icon: 'assets/svg/send_.svg',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Share coming soon')),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          _floatingButton(
-            icon: 'assets/svg/whatsapp_.svg',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('WhatsApp coming soon')),
-              );
-            },
+            onTap: _isSharing ? () {} : () => _handleShare(),
           ),
         ],
       ),
     );
   }
+
+  // ===== CAPTURE RECEIPT AS IMAGE =====
+  Future<File?> _captureReceipt() async {
+    try {
+      final boundary = _receiptKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return null;
+
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+      final tempDir = await getTemporaryDirectory();
+      final file = File(
+          '${tempDir.path}/struk_${widget.orderId}_${DateTime.now().millisecondsSinceEpoch}.png');
+      await file.writeAsBytes(pngBytes);
+      return file;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal membuat gambar struk: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return null;
+    }
+  }
+
+  // ===== SHARE RECEIPT =====
+  Future<void> _handleShare() async {
+    if (_isSharing) return;
+    setState(() => _isSharing = true);
+
+    try {
+      final file = await _captureReceipt();
+      if (file == null) return;
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Struk Pemesanan - ${widget.orderId}',
+      );
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
+  }
+
+  // // ===== SHARE TO WHATSAPP =====
+  // Future<void> _handleWhatsAppDirect() async {
+  //   String phone = widget.customerPhone.replaceAll(RegExp(r'[^0-9]'), '');
+  //   if (phone.startsWith('0')) {
+  //     phone = '62${phone.substring(1)}';
+  //   } else if (!phone.startsWith('62')) {
+  //     phone = '62$phone';
+  //   }
+  //   final message = Uri.encodeComponent(
+  //       'Halo ${widget.customerName}, berikut struk pesanan Anda:\nOrder ID: ${widget.orderId}\nTotal: Rp ${_formatNumber(widget.totalPrice)}');
+  //   final url = 'https://wa.me/$phone?text=$message';
+  //   if (await canLaunchUrl(Uri.parse(url))) {
+  //     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  //   } else {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('Tidak bisa membuka WhatsApp')),
+  //     );
+  //   }
+  // }
 
   // ===== HANDLE PRINT =====
   Future<void> _handlePrint() async {
