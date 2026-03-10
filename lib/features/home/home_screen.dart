@@ -20,9 +20,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String get _shopName => ShopSettings.shopName;
 
   // Firebase
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late String _userId;
+  String get _userId => ShopSettings.shopOwnerId;
 
   // Order counts
   int _todayOrdersCount = 0;
@@ -64,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _userId = _auth.currentUser?.uid ?? '';
     _loadShopName();
     _setupRealtimeListeners();
     _setupIncomeListener();

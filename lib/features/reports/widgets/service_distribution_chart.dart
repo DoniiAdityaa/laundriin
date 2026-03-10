@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/svg.dart';
 import 'dart:async';
 import 'package:laundriin/ui/typography.dart';
+import 'package:laundriin/config/shop_config.dart';
 
 class ServiceDistributionChart extends StatefulWidget {
   final String period; // 'day', 'week' or 'month'
@@ -23,7 +23,7 @@ class ServiceDistributionChart extends StatefulWidget {
 
 class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _userId => ShopSettings.shopOwnerId;
 
   Map<String, int> _serviceCount = {};
   StreamSubscription? _ordersSubscription;

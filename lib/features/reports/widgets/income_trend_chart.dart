@@ -1,8 +1,8 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
+import 'package:laundriin/config/shop_config.dart';
 
 class IncomeTrendChart extends StatefulWidget {
   final String period; // 'week' or 'month'
@@ -20,7 +20,7 @@ class IncomeTrendChart extends StatefulWidget {
 
 class _IncomeTrendChartState extends State<IncomeTrendChart> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _userId => ShopSettings.shopOwnerId;
 
   Map<int, int> _dailyIncome = {}; // day -> income
   StreamSubscription? _ordersSubscription;

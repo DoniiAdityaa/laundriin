@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:laundriin/ui/color.dart';
@@ -27,7 +26,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
   // Firestore & Auth
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _userId => ShopSettings.shopOwnerId;
 
   // Customer search state
   List<Map<String, dynamic>> _searchResults = [];
@@ -118,6 +117,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
   Future<void> _searchCustomers(String query) async {
     try {
+      print('[SEARCH] Searching in shops/${_userId}/customers for "$query"');
       final snapshot = await _firestore
           .collection('shops')
           .doc(_userId)
@@ -522,6 +522,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         'notes': _notesC.text.trim().isEmpty ? null : _notesC.text.trim(),
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
+        'createdByName': ShopSettings.currentUserDisplayName,
       };
 
       // Print order data for verification

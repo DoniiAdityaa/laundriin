@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:laundriin/config/shop_config.dart';
@@ -21,7 +20,7 @@ class _ShopInformationState extends State<ShopInformation> {
 
   bool _isLoading = false;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _userId => ShopSettings.shopOwnerId;
 
   @override
   void initState() {

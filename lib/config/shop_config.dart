@@ -63,6 +63,9 @@ class DeliveryConfig {
 }
 
 class ShopSettings {
+  /// ID pemilik toko (admin UID) - digunakan untuk query Firestore
+  static String shopOwnerId = '';
+
   /// Nama toko (dari Firestore) - Default: Cendana
   static String shopName = 'Cendana';
 
@@ -78,9 +81,14 @@ class ShopSettings {
   /// Nama kasir (sama dengan owner, dari Firestore)
   static String get currentUserName => ownerName;
 
+  /// Nama user yang sedang login (admin = ownerName, staff = staff username)
+  static String currentUserDisplayName = 'Admin';
+
   /// Load shop settings dari Firestore /shop_information/{userId}
   static Future<void> loadFromFirestore(String userId) async {
     try {
+      shopOwnerId = userId;
+
       final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(userId)

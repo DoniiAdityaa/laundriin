@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:laundriin/features/add_order/order_detail_screen.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/shared_widget/order_card_screen.dart';
 import 'package:laundriin/ui/typography.dart';
+import 'package:laundriin/config/shop_config.dart';
 
 class OrdersScreen extends StatefulWidget {
   final String? initialStatus;
@@ -24,7 +24,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   // Firestore & Auth
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _userId => ShopSettings.shopOwnerId;
 
   // Orders data
   List<Map<String, dynamic>> _allOrders = [];

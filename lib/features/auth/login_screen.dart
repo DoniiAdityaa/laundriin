@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/ui/typography.dart';
@@ -73,6 +74,15 @@ class _LoginScreenState extends State<LoginScreen> {
             }
             return;
           }
+
+          // Staff valid → set ShopSettings
+          ShopSettings.shopOwnerId = adminUid;
+          ShopSettings.currentUserDisplayName =
+              memberDoc.data()?['username'] ?? 'Staff';
+          await Future.wait([
+            ShopSettings.loadFromFirestore(adminUid),
+            DeliveryConfig.loadFromDatabase(adminUid),
+          ]);
         } else {
           // Tidak ada mapping → cek apakah benar admin (punya doc users/{uid})
           final userDoc = await FirebaseFirestore.instance
@@ -95,6 +105,18 @@ class _LoginScreenState extends State<LoginScreen> {
             }
             return;
           }
+
+          // Admin valid → set ShopSettings
+          ShopSettings.shopOwnerId = uid;
+          await Future.wait([
+            ShopSettings.loadFromFirestore(uid),
+            DeliveryConfig.loadFromDatabase(uid),
+          ]);
+          final adminUsername = userDoc.data()?['username'];
+          ShopSettings.currentUserDisplayName =
+              (adminUsername != null && adminUsername.toString().isNotEmpty)
+                  ? adminUsername
+                  : ShopSettings.ownerName;
         }
 
         if (mounted) {

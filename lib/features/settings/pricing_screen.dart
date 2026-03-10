@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/utility/formatter/rupiah_formatter.dart';
+import 'package:laundriin/config/shop_config.dart';
 
 class PricingScreen extends StatefulWidget {
   const PricingScreen({super.key});
@@ -33,7 +33,7 @@ class _PricingScreenState extends State<PricingScreen> {
   bool _isLoading = false;
   List<Map<String, dynamic>> _nonKiloItems = [];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _userId => ShopSettings.shopOwnerId;
 
   // Helper function untuk parse rupiah format ke int
   int _parseRupiahToInt(String text) {

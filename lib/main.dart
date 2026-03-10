@@ -147,6 +147,9 @@ class _MyAppState extends State<MyApp> {
       }
 
       // Staff valid, load data toko admin
+      ShopSettings.shopOwnerId = adminUid;
+      ShopSettings.currentUserDisplayName =
+          memberDoc.data()?['username'] ?? 'Staff';
       await Future.wait([
         ShopSettings.loadFromFirestore(adminUid),
         DeliveryConfig.loadFromDatabase(adminUid),
@@ -163,10 +166,16 @@ class _MyAppState extends State<MyApp> {
       }
 
       // Admin valid, load data toko sendiri
+      ShopSettings.shopOwnerId = uid;
       await Future.wait([
         ShopSettings.loadFromFirestore(uid),
         DeliveryConfig.loadFromDatabase(uid),
       ]);
+      final adminUsername = userDoc.data()?['username'];
+      ShopSettings.currentUserDisplayName =
+          (adminUsername != null && adminUsername.toString().isNotEmpty)
+              ? adminUsername
+              : ShopSettings.ownerName;
     }
 
     return true;

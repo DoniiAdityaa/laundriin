@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
+import 'package:laundriin/config/shop_config.dart';
 import 'widgets/income_trend_chart.dart';
 import 'widgets/service_distribution_chart.dart';
 
@@ -21,7 +21,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   DateTime _selectedDate = DateTime.now();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _userId => ShopSettings.shopOwnerId;
 
   // Income summary state
   int _currentPeriodIncome = 0;
@@ -592,6 +592,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   'amount': amount,
                   'createdAt': createdAt.toDate(),
                   'note': doc['note'] ?? '',
+                  'createdByName': doc.data().containsKey('createdByName')
+                      ? doc['createdByName']
+                      : null,
                 });
               }
             }
@@ -766,6 +769,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         'category': category,
         'amount': amount,
         'note': note,
+        'createdByName': ShopSettings.currentUserDisplayName,
         'createdAt': FieldValue.serverTimestamp(),
       });
       if (mounted) {
@@ -1855,6 +1859,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   style: xsRegular.copyWith(
                                       color: Colors.grey[500]),
                                 ),
+
+                                // dibuat siapa
+                                if (item['createdByName'] != null)
+                                  Text(
+                                    'Oleh: ${item['createdByName']}',
+                                    style: xsRegular.copyWith(
+                                        color: Colors.grey[500]),
+                                  ),
                                 const SizedBox(height: 4),
                                 Text(
                                   item['note'] ?? '',

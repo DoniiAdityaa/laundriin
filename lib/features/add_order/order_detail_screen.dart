@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
@@ -34,7 +33,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   late String _currentStatus;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _userId => ShopSettings.shopOwnerId;
   final CloudinaryService _cloudinaryService = CloudinaryService();
   bool _isUpdating = false;
 
@@ -550,14 +549,37 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
             // ===== CREATED TIME =====
             _sectionCard(
-              child: Row(
+              child: Column(
                 children: [
-                  const Icon(Icons.access_time, size: 18, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Dibuat: $dateStr',
-                    style: sRegular.copyWith(color: textMuted),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time,
+                          size: 18, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Dibuat: $dateStr',
+                        style: sRegular.copyWith(color: textMuted),
+                      ),
+                    ],
                   ),
+                  if (_orderData['createdByName'] != null) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        SvgPicture.asset(
+                          'assets/svg/user.svg',
+                          width: 18,
+                          height: 18,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Oleh: ${_orderData['createdByName']}',
+                          style: sRegular.copyWith(color: textMuted),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
