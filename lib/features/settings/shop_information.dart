@@ -19,6 +19,7 @@ class _ShopInformationState extends State<ShopInformation> {
   final _addressC = TextEditingController();
 
   bool _isLoading = false;
+  bool _isLoadingData = true;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String get _userId => ShopSettings.shopOwnerId;
 
@@ -44,11 +45,13 @@ class _ShopInformationState extends State<ShopInformation> {
           _ownerNameC.text = data['ownerName'] ?? '';
           _whatsappC.text = whatsapp;
           _addressC.text = data['address'] ?? '';
+          _isLoadingData = false;
         });
         print('[LOAD] Shop information loaded');
       }
     } catch (e) {
       print('[ERROR] Loading shop info: $e');
+      setState(() => _isLoadingData = false);
     }
   }
 
@@ -124,53 +127,57 @@ class _ShopInformationState extends State<ShopInformation> {
                 title: 'Informasi Toko',
                 subtitle: 'Kelola informasi toko Anda'),
             const SizedBox(height: 24),
-            _buildCardShop(),
-            const SizedBox(height: 32),
-            // ===== Save Button =====
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: blue500,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            if (_isLoadingData)
+              const Center(child: CircularProgressIndicator())
+            else ...[
+              _buildCardShop(),
+              const SizedBox(height: 32),
+              // ===== Save Button =====
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: blue500,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                    shadowColor: blue500.withOpacity(0.3),
                   ),
-                  elevation: 4,
-                  shadowColor: blue500.withOpacity(0.3),
-                ),
-                onPressed: _isLoading ? null : _saveShopData,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                          strokeWidth: 3,
-                        ),
-                      )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SvgPicture.asset(
-                            'assets/svg/lets-icons_save.svg',
-                            color: white,
+                  onPressed: _isLoading ? null : _saveShopData,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                            strokeWidth: 3,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Simpan Perubahan',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/svg/lets-icons_save.svg',
+                              color: white,
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Simpan Perubahan',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
               ),
-            ),
+            ],
           ]),
         ),
       ),

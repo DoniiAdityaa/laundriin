@@ -9,13 +9,13 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/printer_service/printer_manager.dart';
 import 'package:laundriin/printer_service/receipt_genarator.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class ReceiptScreen extends StatefulWidget {
   final String orderId;
@@ -518,6 +518,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             icon: 'assets/svg/send_.svg',
             onTap: _isSharing ? () {} : () => _handleShare(),
           ),
+          const SizedBox(height: 12),
+          _floatingButton(
+            icon: 'assets/svg/whatsapp_.svg',
+            onTap: _isSharing ? () {} : () => _handleWhatsAppDirect(),
+          ),
         ],
       ),
     );
@@ -571,25 +576,56 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     }
   }
 
-  // // ===== SHARE TO WHATSAPP =====
-  // Future<void> _handleWhatsAppDirect() async {
-  //   String phone = widget.customerPhone.replaceAll(RegExp(r'[^0-9]'), '');
-  //   if (phone.startsWith('0')) {
-  //     phone = '62${phone.substring(1)}';
-  //   } else if (!phone.startsWith('62')) {
-  //     phone = '62$phone';
-  //   }
-  //   final message = Uri.encodeComponent(
-  //       'Halo ${widget.customerName}, berikut struk pesanan Anda:\nOrder ID: ${widget.orderId}\nTotal: Rp ${_formatNumber(widget.totalPrice)}');
-  //   final url = 'https://wa.me/$phone?text=$message';
-  //   if (await canLaunchUrl(Uri.parse(url))) {
-  //     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-  //   } else {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text('Tidak bisa membuka WhatsApp')),
-  //     );
-  //   }
-  // }
+  // ===== SHARE TO WHATSAPP (TEXT ONLY, DIRECT TO CONTACT) =====
+  Future<void> _handleWhatsAppDirect() async {
+    // 1. Format phone number
+    String phone = widget.customerPhone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (phone.startsWith('0')) {
+      phone = '62${phone.substring(1)}';
+    } else if (!phone.startsWith('62')) {
+      phone = '62$phone';
+    }
+
+    // 2. Compose message text
+    final message =
+        'Halo ${widget.customerName}, berikut struk pesanan Anda:\n\n'
+        '🧾 *STRUK PEMESANAN*\n'
+        '━━━━━━━━━━━━━━━\n'
+        '📋 Order ID: ${widget.orderId}\n'
+        '👤 Pelanggan: ${widget.customerName}\n'
+        '📅 Tanggal: ${_formatDate(widget.orderDate)}\n'
+        '🧺 Layanan: ${_getServiceDisplay()}\n'
+        '⚡ Kecepatan: ${_getSpeedDisplay()}\n'
+        '━━━━━━━━━━━━━━━\n'
+        '💰 *Total: Rp ${_formatNumber(widget.totalPrice)}*\n'
+        '━━━━━━━━━━━━━━━\n\n'
+        'Terima kasih! 🙏';
+
+    // 3. Open WhatsApp directly to customer's number
+    final waUrl =
+        Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
+
+    if (await canLaunchUrl(waUrl)) {
+      await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('WhatsApp tidak tersedia di perangkat ini'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year} '
+        '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
+  }
 
   // ===== HANDLE PRINT =====
   Future<void> _handlePrint() async {

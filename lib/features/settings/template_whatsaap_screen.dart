@@ -36,12 +36,38 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
   void initState() {
     super.initState();
     _setupTemplateListener();
+    _loadTemplates();
   }
 
   @override
   void dispose() {
     _templateSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadTemplates() async {
+    try {
+      final doc = await _firestore.collection('shops').doc(_userId).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!['whatsappTemplates'] ?? {};
+        setState(() {
+          _templates = data.entries.map((entry) {
+            final template = entry.value;
+            return {
+              'id': entry.key,
+              'title': template['title'] ?? '',
+              'category': template['category'] ?? 'Proses',
+              'message': template['message'] ?? '',
+              'isActive': template['isActive'] ?? true,
+            };
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('[TEMPLATE] Error: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _setupTemplateListener() {
@@ -95,15 +121,17 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
     return Scaffold(
       backgroundColor: bgApp,
       body: SafeArea(
-        child: Column(
-          children: [
-            // ===== HEADER =====
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-              child: _buildHeader(),
-            ),
-            const SizedBox(height: 20),
+        child: Column(children: [
+          // ===== HEADER =====
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: _buildHeader(),
+          ),
+          const SizedBox(height: 20),
 
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else ...[
             // ===== CATEGORY FILTER =====
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -141,23 +169,20 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
 
             // ===== TEMPLATE LIST =====
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _filteredTemplates.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                          itemCount: _filteredTemplates.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final template = _filteredTemplates[index];
-                            return _buildTemplateCard(template);
-                          },
-                        ),
+              child: _filteredTemplates.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      itemCount: _filteredTemplates.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final template = _filteredTemplates[index];
+                        return _buildTemplateCard(template);
+                      },
+                    ),
             ),
           ],
-        ),
+        ]),
       ),
 
       // ===== FAB: ADD TEMPLATE =====

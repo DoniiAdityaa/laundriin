@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,6 +26,8 @@ class _SettingScreenState extends State<SettingScreen> {
   final TextEditingController _usernameC = TextEditingController();
   String _appVersion = "1.0.0";
 
+  StreamSubscription<DocumentSnapshot>? _userRoleSubscription;
+
   // Staff role state
   bool _isStaff = false;
   String _adminUid = '';
@@ -38,16 +42,16 @@ class _SettingScreenState extends State<SettingScreen> {
     _checkUserRole();
   }
 
-  Future<void> _checkUserRole() async {
+  void _checkUserRole() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    try {
-      final mappingDoc = await FirebaseFirestore.instance
-          .collection('userShopMapping')
-          .doc(uid)
-          .get();
-
+    // Listen ke perubahan realtime di userShopMapping
+    _userRoleSubscription = FirebaseFirestore.instance
+        .collection('userShopMapping')
+        .doc(uid)
+        .snapshots()
+        .listen((mappingDoc) async {
       if (mappingDoc.exists) {
         // User adalah staff
         final adminUid = mappingDoc.data()!['shopOwnerId'] as String;
@@ -58,24 +62,30 @@ class _SettingScreenState extends State<SettingScreen> {
             .doc(uid)
             .get();
 
-        setState(() {
-          _isStaff = true;
-          _adminUid = adminUid;
-          _staffUsername = memberDoc.data()?['username'] ?? '';
-          _staffEmail = FirebaseAuth.instance.currentUser?.email ?? '';
-          _isLoadingRole = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isStaff = true;
+            _adminUid = adminUid;
+            _staffUsername = memberDoc.data()?['username'] ?? '';
+            _staffEmail = FirebaseAuth.instance.currentUser?.email ?? '';
+            _isLoadingRole = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            _isStaff = false;
+            _isLoadingRole = false;
+          });
+        }
+      }
+    }, onError: (e) {
+      if (mounted) {
         setState(() {
-          _isStaff = false;
           _isLoadingRole = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        _isLoadingRole = false;
-      });
-    }
+    });
   }
 
   Future<void> _getAppVersion() async {
@@ -83,6 +93,19 @@ class _SettingScreenState extends State<SettingScreen> {
     setState(() {
       _appVersion = packageInfo.version;
     });
+  }
+
+  Future<void> _onRefresh() async {
+    _userRoleSubscription?.cancel();
+
+    setState(() {
+      _isLoadingRole = true;
+    });
+
+    _checkUserRole();
+    _getAppVersion();
+
+    await Future.delayed(const Duration(milliseconds: 500));
   }
 
   Future<void> _logout() async {
@@ -396,52 +419,55 @@ class _SettingScreenState extends State<SettingScreen> {
     return Scaffold(
       backgroundColor: bgApp,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              const Text("Pengaturan", style: mBold),
-              const SizedBox(height: 14),
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                const Text("Pengaturan", style: mBold),
+                const SizedBox(height: 14),
 
-              if (_isStaff) ..._buildStaffSettings(),
+                if (_isStaff) ..._buildStaffSettings(),
 
-              if (!_isStaff) ..._buildAdminSettings(),
+                if (!_isStaff) ..._buildAdminSettings(),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              // ===== Logout Button =====
-              _buildLogoutButton(
-                onTap: _logout,
-              ),
+                // ===== Logout Button =====
+                _buildLogoutButton(
+                  onTap: _logout,
+                ),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              // ===== Version Info =====
-              Center(
-                child: Text(
-                  "LAUNDRIIN v$_appVersion",
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF9CA3AF),
+                // ===== Version Info =====
+                Center(
+                  child: Text(
+                    "LAUNDRIIN v$_appVersion",
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF9CA3AF),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  "© 2026 LAUNDRIIN. All Rights Reserved.",
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFFD1D5DB),
+                const SizedBox(height: 10),
+                Center(
+                  child: Text(
+                    "© 2026 LAUNDRIIN. All Rights Reserved.",
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFFD1D5DB),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -544,6 +570,7 @@ class _SettingScreenState extends State<SettingScreen> {
   void dispose() {
     _shopNameC.dispose();
     _usernameC.dispose();
+    _userRoleSubscription?.cancel();
     super.dispose();
   }
 

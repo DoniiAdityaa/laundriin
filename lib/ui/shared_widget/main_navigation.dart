@@ -63,12 +63,12 @@ class _MainNavigationState extends State<MainNavigation> {
             _navItem(
               index: 0,
               iconSvg: "assets/svg/Home.svg",
-              label: "Home",
+              label: "Beranda",
             ),
             _navItem(
               index: 1,
               iconSvg: "assets/svg/Document.svg",
-              label: "Orders",
+              label: "Pesanan",
             ),
             // ===== Center FAB-like Button =====
             Transform.translate(
@@ -108,12 +108,12 @@ class _MainNavigationState extends State<MainNavigation> {
             _navItem(
               index: 2,
               iconSvg: "assets/svg/Chart.svg",
-              label: "Reports",
+              label: "Laporan",
             ),
             _navItem(
               index: 3,
               iconSvg: "assets/svg/Setting.svg",
-              label: "Settings",
+              label: "Pengaturan",
             ),
           ],
         ),
