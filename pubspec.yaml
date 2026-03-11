@@ -83,7 +83,7 @@ dependencies:
   intl: ^0.20.2
   image_picker: ^1.2.1
   super_tooltip: ^2.0.8
-  open_file: ^3.5.3
+  open_file: ^3.5.11
   file_picker: ^8.1.2
   encrypt: ^5.0.3
   envied: ^1.0.0
@@ -142,6 +142,7 @@ dependencies:
   cloudinary_api: ^1.1.1
   fl_chart: ^0.65.0
   print_bluetooth_thermal: ^1.1.9
+  pdf: ^3.11.3
 
 dev_dependencies:
   flutter_test:

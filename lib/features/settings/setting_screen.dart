@@ -27,6 +27,7 @@ class _SettingScreenState extends State<SettingScreen> {
   String _appVersion = "1.0.0";
 
   StreamSubscription<DocumentSnapshot>? _userRoleSubscription;
+  StreamSubscription<DocumentSnapshot>? _memberDocSubscription;
 
   // Staff role state
   bool _isStaff = false;
@@ -55,23 +56,28 @@ class _SettingScreenState extends State<SettingScreen> {
       if (mappingDoc.exists) {
         // User adalah staff
         final adminUid = mappingDoc.data()!['shopOwnerId'] as String;
-        final memberDoc = await FirebaseFirestore.instance
+
+        // Listen ke perubahan realtime di member doc
+        _memberDocSubscription?.cancel();
+        _memberDocSubscription = FirebaseFirestore.instance
             .collection('users')
             .doc(adminUid)
             .collection('members')
             .doc(uid)
-            .get();
-
-        if (mounted) {
-          setState(() {
-            _isStaff = true;
-            _adminUid = adminUid;
-            _staffUsername = memberDoc.data()?['username'] ?? '';
-            _staffEmail = FirebaseAuth.instance.currentUser?.email ?? '';
-            _isLoadingRole = false;
-          });
-        }
+            .snapshots()
+            .listen((memberDoc) {
+          if (mounted && memberDoc.exists) {
+            setState(() {
+              _isStaff = true;
+              _adminUid = adminUid;
+              _staffUsername = memberDoc.data()?['username'] ?? '';
+              _staffEmail = FirebaseAuth.instance.currentUser?.email ?? '';
+              _isLoadingRole = false;
+            });
+          }
+        });
       } else {
+        _memberDocSubscription?.cancel();
         if (mounted) {
           setState(() {
             _isStaff = false;
@@ -97,6 +103,7 @@ class _SettingScreenState extends State<SettingScreen> {
 
   Future<void> _onRefresh() async {
     _userRoleSubscription?.cancel();
+    _memberDocSubscription?.cancel();
 
     setState(() {
       _isLoadingRole = true;
@@ -422,6 +429,7 @@ class _SettingScreenState extends State<SettingScreen> {
         child: RefreshIndicator(
           onRefresh: _onRefresh,
           child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,6 +579,7 @@ class _SettingScreenState extends State<SettingScreen> {
     _shopNameC.dispose();
     _usernameC.dispose();
     _userRoleSubscription?.cancel();
+    _memberDocSubscription?.cancel();
     super.dispose();
   }
 
