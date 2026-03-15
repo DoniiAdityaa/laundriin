@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/config/shop_config.dart';
@@ -41,6 +42,9 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription? _incomeSubscription;
 
   bool _isStaff = false;
+  bool _isLoading = true; // State loading
+  bool _listenersSetup = false; // Mencegah setup berulang
+  StreamSubscription? _connectivitySubscription; // Monitor koneksi offline
 
   Future<void> _checkIfStaff() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -50,7 +54,9 @@ class _HomeScreenState extends State<HomeScreen> {
         .doc(uid)
         .get();
     if (mappingDoc.exists) {
-      setState(() => _isStaff = true);
+      if (mounted) {
+        setState(() => _isStaff = true);
+      }
     }
   }
 
@@ -64,22 +70,55 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadShopName();
-    _setupRealtimeListeners();
-    _setupIncomeListener();
     _checkIfStaff();
+    _initWithConnectivity(); // Cek koneksi dulu sebelum setup listener
   }
 
   @override
   void dispose() {
-    // Cancel listeners saat dispose
     _ordersSubscription?.cancel();
     _incomeSubscription?.cancel();
+    _connectivitySubscription?.cancel(); // Dispose connectivity listener
     super.dispose();
+  }
+
+  // ===== CEK KONEKSI SEBELUM SETUP LISTENER =====
+  Future<void> _initWithConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+    final isOnline =
+        result.isNotEmpty && result.first != ConnectivityResult.none;
+
+    if (isOnline) {
+      // Langsung setup listener kalau online
+      _setupAllListeners();
+    } else {
+      // Kalau offline: tunggu sampai ada internet
+      print('[HOME] 📡 Offline – menunggu koneksi...');
+      _connectivitySubscription =
+          Connectivity().onConnectivityChanged.listen((results) {
+        final online =
+            results.isNotEmpty && results.first != ConnectivityResult.none;
+        if (online && !_listenersSetup) {
+          print('[HOME] 📡 Internet kembali – setup listeners!');
+          _setupAllListeners();
+          _connectivitySubscription?.cancel();
+        }
+      });
+    }
+  }
+
+  void _setupAllListeners() {
+    if (_listenersSetup) return;
+    _listenersSetup = true;
+    _setupRealtimeListeners();
+    _setupIncomeListener();
   }
 
   void _loadShopName() {
     // Trigger rebuild supaya nama toko terbaru tampil
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
     print('[LOAD] Shop name from Settings: $_shopName');
   }
 
@@ -138,12 +177,16 @@ class _HomeScreenState extends State<HomeScreen> {
     int todayCount =
         waiting + inProcess + completed; // Total = active orders only
 
-    setState(() {
-      _todayOrdersCount = todayCount;
-      _waitingCount = waiting;
-      _inProcessCount = inProcess;
-      _completedCount = completed;
-    });
+    if (mounted) {
+      setState(() {
+        _todayOrdersCount = todayCount;
+        _waitingCount = waiting;
+        _inProcessCount = inProcess;
+        _completedCount = completed;
+        // Data pesanan sudah berhasil diambil pertama kali
+        if (_isLoading) _isLoading = false;
+      });
+    }
 
     print(
         '[HOME] 🔄 Orders updated - Today: $todayCount, Waiting: $waiting, Process: $inProcess, Completed: $completed');
@@ -162,12 +205,14 @@ class _HomeScreenState extends State<HomeScreen> {
       return bTime.compareTo(aTime); // Descending
     });
 
-    setState(() {
-      _recentOrders = activeDocs
-          .take(5)
-          .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
-          .toList();
-    });
+    if (mounted) {
+      setState(() {
+        _recentOrders = activeDocs
+            .take(5)
+            .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+            .toList();
+      });
+    }
 
     print('[HOME] 🔄 Recent orders updated: ${_recentOrders.length}');
   }
@@ -233,10 +278,12 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    setState(() {
-      _incomeTodayCompleted = todayIncome;
-      _incomeWeekCompleted = weekIncome;
-    });
+    if (mounted) {
+      setState(() {
+        _incomeTodayCompleted = todayIncome;
+        _incomeWeekCompleted = weekIncome;
+      });
+    }
 
     print(
         '[HOME] 💰 Income updated - Today: $todayIncome, This Week: $weekIncome');
@@ -263,61 +310,68 @@ class _HomeScreenState extends State<HomeScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(_shopName, style: mBold),
-                    if (_isStaff)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F7EE),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          'Staff',
-                          style: xsSemiBold.copyWith(
-                            color: const Color(0xFF16A34A),
-                          ),
-                        ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 400,
+                    child: Center(
+                        child: CircularProgressIndicator(color: blue500)),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_shopName, style: mBold),
+                          if (_isStaff)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F7EE),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                'Staff',
+                                style: xsSemiBold.copyWith(
+                                  color: const Color(0xFF16A34A),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _getFormattedDate(),
-                  style: sRegular.copyWith(color: const Color(0xFF6B7280)),
-                ),
-                const SizedBox(height: 20),
-                // ====== Card Income ======
-                _buildCardIncome(),
-                const SizedBox(
-                  height: 15,
-                ),
-                Text(
-                  'Status Pesanan',
-                  style: mBold,
-                ),
-                const SizedBox(height: 15),
-                // ====== Order Status Grid ======
-                _buildOrderStatusGrid(),
-                const SizedBox(
-                  height: 15,
-                ),
-                Text(
-                  'Pesanan Terbaru',
-                  style: mBold,
-                ),
-                const SizedBox(
-                  height: 15,
-                ),
-                _buildRecentOrders()
-              ],
-            ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _getFormattedDate(),
+                        style:
+                            sRegular.copyWith(color: const Color(0xFF6B7280)),
+                      ),
+                      const SizedBox(height: 20),
+                      // ====== Card Income ======
+                      _buildCardIncome(),
+                      const SizedBox(
+                        height: 15,
+                      ),
+                      Text(
+                        'Status Pesanan',
+                        style: mBold,
+                      ),
+                      const SizedBox(height: 15),
+                      // ====== Order Status Grid ======
+                      _buildOrderStatusGrid(),
+                      const SizedBox(
+                        height: 15,
+                      ),
+                      Text(
+                        'Pesanan Terbaru',
+                        style: mBold,
+                      ),
+                      const SizedBox(
+                        height: 15,
+                      ),
+                      _buildRecentOrders()
+                    ],
+                  ),
           ),
         ),
       ),

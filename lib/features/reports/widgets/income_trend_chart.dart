@@ -277,7 +277,7 @@ class _IncomeTrendChartState extends State<IncomeTrendChart> {
             reservedSize: 30,
             interval: 1,
             getTitlesWidget: (value, meta) {
-              const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+              const days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
               final index = value.toInt();
               if (index >= 0 && index < days.length) {
                 return SideTitleWidget(
@@ -511,7 +511,7 @@ class _IncomeTrendChartState extends State<IncomeTrendChart> {
               final day = touchedSpot.x.toInt() + 1;
               final textColor = Colors.white;
               return LineTooltipItem(
-                'Day $day: ${_formatRupiah(touchedSpot.y)}',
+                'Hari $day: ${_formatRupiah(touchedSpot.y)}',
                 TextStyle(
                   color: textColor,
                   fontWeight: FontWeight.bold,

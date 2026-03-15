@@ -853,20 +853,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           ),
                         ],
                       ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: gray100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(Icons.close_rounded,
-                              size: 18, color: gray500),
-                        ),
-                      ),
                     ],
                   ),
                 ),

@@ -38,6 +38,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
     3: false
   };
 
+  bool _isInitialLoading = true;
+
   // Order counts by status
   int _pendingCount = 0;
   int _processCount = 0;
@@ -134,6 +136,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
               };
             }).toList();
             _updateOrderCounts();
+            if (_isInitialLoading) _isInitialLoading = false;
           });
           _filterOrders();
           print('[ORDERS] ✅ Real-time update: ${_allOrders.length} orders');
@@ -264,13 +267,16 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
             // ===== ORDERS LIST (SCROLLABLE WITH REFRESH) =====
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: _onRefresh,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildRecentOrders(),
-                ),
-              ),
+              child: _isInitialLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: blue500))
+                  : RefreshIndicator(
+                      onRefresh: _onRefresh,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildRecentOrders(),
+                      ),
+                    ),
             ),
           ],
         ),

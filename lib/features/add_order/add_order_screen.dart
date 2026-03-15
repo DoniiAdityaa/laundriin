@@ -896,28 +896,36 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 // Mulai dari sini
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bgApp,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ===== Header =====
-              _buildHeader(),
-              const SizedBox(height: 24),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _confirmExit();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: bgApp,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ===== Header =====
+                _buildHeader(),
+                const SizedBox(height: 24),
 
-              // ===== Step Content =====
-              if (_currentStep == 1) _buildStep1(),
-              if (_currentStep == 2) _buildStep2(),
-              if (_currentStep == 3) _buildStep3(),
+                // ===== Step Content =====
+                if (_currentStep == 1) _buildStep1(),
+                if (_currentStep == 2) _buildStep2(),
+                if (_currentStep == 3) _buildStep3(),
 
-              const SizedBox(height: 32),
+                const SizedBox(height: 32),
 
-              // ===== Navigation Buttons =====
-              _buildBottomButtons(),
-            ],
+                // ===== Navigation Buttons =====
+                _buildBottomButtons(),
+              ],
+            ),
           ),
         ),
       ),

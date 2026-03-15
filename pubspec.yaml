@@ -143,6 +143,7 @@ dependencies:
   fl_chart: ^0.65.0
   print_bluetooth_thermal: ^1.1.9
   pdf: ^3.11.3
+  connectivity_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:
@@ -195,6 +196,7 @@ flutter:
   assets:
     - assets/images/
     - assets/svg/
+    - shorebird.yaml
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

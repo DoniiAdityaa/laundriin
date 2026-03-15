@@ -10,6 +10,8 @@ import 'firebase_options.dart';
 import 'package:laundriin/features/auth/login_screen.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/config/shop_config.dart';
+import 'package:laundriin/utility/snackbar_helper.dart';
+import 'package:laundriin/utility/network_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +57,10 @@ class _MyAppState extends State<MyApp> {
         FocusManager.instance.primaryFocus?.unfocus();
       },
       child: MaterialApp(
+        scaffoldMessengerKey: SnackbarHelper.key,
+        builder: (context, child) {
+          return NetworkBanner(child: child!);
+        },
         debugShowCheckedModeBanner: false,
         title: 'Laundriin',
         localizationsDelegates: const [

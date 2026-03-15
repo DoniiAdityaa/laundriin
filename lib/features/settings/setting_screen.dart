@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:laundriin/features/settings/feedback_screen.dart';
 import 'package:laundriin/features/settings/shop_information.dart';
 import 'package:laundriin/features/settings/team_menagement_screen.dart';
 import 'package:laundriin/features/settings/template_whatsaap_screen.dart';
@@ -24,7 +25,7 @@ class _SettingScreenState extends State<SettingScreen> {
   final TextEditingController _shopNameC =
       TextEditingController(text: "LAUNDRIIN");
   final TextEditingController _usernameC = TextEditingController();
-  String _appVersion = "1.0.0";
+  String _appVersion = "";
 
   StreamSubscription<DocumentSnapshot>? _userRoleSubscription;
   StreamSubscription<DocumentSnapshot>? _memberDocSubscription;
@@ -39,8 +40,15 @@ class _SettingScreenState extends State<SettingScreen> {
   @override
   void initState() {
     super.initState();
-    _getAppVersion();
+    _loadAppVersion();
     _checkUserRole();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = info.version;
+    });
   }
 
   void _checkUserRole() {
@@ -462,18 +470,6 @@ class _SettingScreenState extends State<SettingScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Center(
-                  child: Text(
-                    "© 2026 LAUNDRIIN. All Rights Reserved.",
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFFD1D5DB),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
               ],
             ),
           ),
@@ -557,6 +553,18 @@ class _SettingScreenState extends State<SettingScreen> {
               context,
               MaterialPageRoute(
                   builder: (context) => const TeamMenagementScreen()));
+        },
+      ),
+
+      _buildMenuCard(
+        icon: Icons.support_agent,
+        title: "Bantuan & Dukungan",
+        subtitle: "Hubunngi kami jika ada masalah",
+        iconBgColor: blue100,
+        iconColor: blue500,
+        onTap: () {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (context) => const FeedbackScreen()));
         },
       ),
 

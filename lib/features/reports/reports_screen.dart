@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/config/shop_config.dart';
@@ -45,14 +46,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
   StreamSubscription? _pendingOrdersSubscription;
 
   bool _isDownloadingPdf = false;
+  bool _isLoading = true; // State loading baru
+  bool _listenersSetup = false;
+  StreamSubscription? _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
-    _setupIncomeListener();
-    _setupExpenseListener();
-    _setupTopCustomersListener();
-    _setupPendingOrdersListener();
+    _initWithConnectivity(); // Cek koneksi dulu sebelum setup listener
   }
 
   @override
@@ -67,7 +68,40 @@ class _ReportsScreenState extends State<ReportsScreen> {
     _expenseSubscription?.cancel();
     _topCustomersSubscription?.cancel();
     _pendingOrdersSubscription?.cancel();
+    _connectivitySubscription?.cancel();
     super.dispose();
+  }
+
+  // ===== CEK KONEKSI SEBELUM SETUP LISTENER =====
+  Future<void> _initWithConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+    final isOnline =
+        result.isNotEmpty && result.first != ConnectivityResult.none;
+
+    if (isOnline) {
+      _setupAllListeners();
+    } else {
+      print('[REPORTS] 📡 Offline – menunggu koneksi...');
+      _connectivitySubscription =
+          Connectivity().onConnectivityChanged.listen((results) {
+        final online =
+            results.isNotEmpty && results.first != ConnectivityResult.none;
+        if (online && !_listenersSetup) {
+          print('[REPORTS] 📡 Internet kembali – setup listeners!');
+          _setupAllListeners();
+          _connectivitySubscription?.cancel();
+        }
+      });
+    }
+  }
+
+  void _setupAllListeners() {
+    if (_listenersSetup) return;
+    _listenersSetup = true;
+    _setupIncomeListener();
+    _setupExpenseListener();
+    _setupTopCustomersListener();
+    _setupPendingOrdersListener();
   }
 
   void _setupIncomeListener() {
@@ -165,11 +199,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       }
     }
 
-    setState(() {
-      _currentPeriodIncome = currentIncome;
-      _previousPeriodIncome = previousIncome;
-      _currentPeriodOrders = currentOrders;
-    });
+    if (mounted) {
+      setState(() {
+        _currentPeriodIncome = currentIncome;
+        _previousPeriodIncome = previousIncome;
+        _currentPeriodOrders = currentOrders;
+        if (_isLoading) _isLoading = false; // Matikan loading saat data masuk
+      });
+    }
 
     print(
         '[INCOME] Current: Rp $_currentPeriodIncome | Previous: Rp $_previousPeriodIncome | Orders: $_currentPeriodOrders');
@@ -219,7 +256,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Reports", style: mBold),
+                  const Text("Laporan", style: mBold),
                   const SizedBox(height: 16),
                   // ===== PERIOD FILTER =====
                   _buildPeriodFilter(),
@@ -233,51 +270,54 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
             // ===== CONTENT (SCROLLABLE + REFRESH) =====
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: _onRefresh,
-                color: blue500,
-                backgroundColor: white,
-                strokeWidth: 3,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: [
-                      // 1. Financial Summary (Combined Card)
-                      _buildFinancialSummary(),
-                      const SizedBox(height: 20),
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: blue500))
+                  : RefreshIndicator(
+                      onRefresh: _onRefresh,
+                      color: blue500,
+                      backgroundColor: white,
+                      strokeWidth: 3,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            // 1. Financial Summary (Combined Card)
+                            _buildFinancialSummary(),
+                            const SizedBox(height: 20),
 
-                      // 2. Expense List + Add Button
-                      _buildExpenseSection(),
-                      const SizedBox(height: 20),
+                            // 2. Expense List + Add Button
+                            _buildExpenseSection(),
+                            const SizedBox(height: 20),
 
-                      // 3. Income Trend Chart (hide for daily)
-                      if (selectedPeriod != 'day') ...[
-                        _buildIncomeTrend(),
-                        const SizedBox(height: 20),
-                      ],
+                            // 3. Income Trend Chart (hide for daily)
+                            if (selectedPeriod != 'day') ...[
+                              _buildIncomeTrend(),
+                              const SizedBox(height: 20),
+                            ],
 
-                      // 4. Service Distribution Chart
-                      _buildServiceDistribution(),
-                      const SizedBox(height: 20),
+                            // 4. Service Distribution Chart
+                            _buildServiceDistribution(),
+                            const SizedBox(height: 20),
 
-                      // 5. Top Customers (hide for daily)
-                      if (selectedPeriod != 'day') ...[
-                        _buildTopCustomers(),
-                        const SizedBox(height: 20),
-                      ],
+                            // 5. Top Customers (hide for daily)
+                            if (selectedPeriod != 'day') ...[
+                              _buildTopCustomers(),
+                              const SizedBox(height: 20),
+                            ],
 
-                      // 6. Pending Orders Alert
-                      _buildPendingOrdersAlert(),
-                      const SizedBox(height: 20),
+                            // 6. Pending Orders Alert
+                            _buildPendingOrdersAlert(),
+                            const SizedBox(height: 20),
 
-                      // // 7. Download PDF (Single Button)
-                      // _buildDownloadPdfButton(),
-                      const SizedBox(height: 25),
-                    ],
-                  ),
-                ),
-              ),
+                            // // 7. Download PDF (Single Button)
+                            // _buildDownloadPdfButton(),
+                            const SizedBox(height: 25),
+                          ],
+                        ),
+                      ),
+                    ),
             ),
           ],
         ),
@@ -321,6 +361,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           setState(() {
             selectedPeriod = value;
             _selectedDate = DateTime.now(); // Reset ke hari ini saat ganti mode
+            _isLoading = true; // Set up loading flag when switching
           });
           // Refresh listeners saat period berubah
           _incomeSubscription?.cancel();
@@ -434,6 +475,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   void _navigatePeriod(int direction) {
     setState(() {
+      _isLoading = true; // Loading when navigating period
       if (selectedPeriod == 'day') {
         _selectedDate = _selectedDate.add(Duration(days: direction));
       } else if (selectedPeriod == 'week') {
@@ -481,7 +523,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
 
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      if (mounted) {
+        setState(() {
+          _selectedDate = picked;
+          _isLoading = true; // set loading ketika pick tanggal
+        });
+      }
       _incomeSubscription?.cancel();
       _setupIncomeListener();
       _expenseSubscription?.cancel();
@@ -1061,7 +1108,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Income Trend',
+              'Tren Pemasukan',
               style: mBold.copyWith(),
             ),
             // Container(
@@ -1126,105 +1173,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
           padding: const EdgeInsets.all(16),
           child: ServiceDistributionChart(
               period: selectedPeriod, referenceDate: _selectedDate),
-        ),
-      ],
-    );
-  }
-
-  // ===== 4. REVENUE BY SERVICE TYPE =====
-  Widget _buildRevenueByServiceType() {
-    // Dummy data - replace dengan Firebase nanti
-    final serviceTypes = [
-      {'name': 'Kiloan', 'amount': 1700000, 'color': const Color(0xFF4F7DF3)},
-      {'name': 'Satuan', 'amount': 800000, 'color': const Color(0xFF7AA2FF)},
-      {'name': 'Express', 'amount': 350000, 'color': const Color(0xFFA5BFFF)},
-    ];
-
-    final totalRevenue =
-        serviceTypes.fold<int>(0, (sum, item) => sum + (item['amount'] as int));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Pendapatan per Layanan',
-          style: mBold,
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              )
-            ],
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: serviceTypes.map((service) {
-              final amount = service['amount'] as int;
-              final percentage = (amount / totalRevenue * 100);
-              final color = service['color'] as Color;
-              final name = service['name'] as String;
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: color,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              name,
-                              style: smBold.copyWith(color: textPrimary),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '${percentage.toStringAsFixed(0)}%',
-                          style: smBold.copyWith(
-                            color: color,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: percentage / 100,
-                        minHeight: 6,
-                        backgroundColor: Colors.grey[200],
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _formatCurrency(amount),
-                      style: xsRegular.copyWith(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
         ),
       ],
     );
@@ -1534,7 +1482,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Tidak ada pesanan tertunda',
-                    style: smBold.copyWith(color: const Color(0xFF1F8F5F)),
+                    style: smRegular.copyWith(color: Colors.grey[400]),
                   ),
                 ],
               ),
@@ -2325,70 +2273,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  Widget _buildDownloadPdfButton() {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: _isDownloadingPdf ? null : () => _downloadPdf(),
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              )
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2F5FE3).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(
-                  child: SizedBox(
-                    width: 25,
-                    height: 25,
-                    child: SvgPicture.asset(
-                      'assets/svg/pdf.svg',
-                      color: blue500,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Download Laporan Keuangan',
-                    style: smBold.copyWith(color: textPrimary, fontSize: 14),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Pemasukan, pengeluaran & laba bersih',
-                    style: xsRegular.copyWith(color: Colors.grey[500]),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // ===== HELPER FUNCTION =====
   String _getPeriodLabel() {
     final d = _selectedDate;
@@ -2411,14 +2295,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       'Feb',
       'Mar',
       'Apr',
-      'May',
+      'Mei',
       'Jun',
       'Jul',
-      'Aug',
+      'Agu',
       'Sep',
-      'Oct',
+      'Okt',
       'Nov',
-      'Dec'
+      'Des'
     ];
     return months[month - 1];
   }
