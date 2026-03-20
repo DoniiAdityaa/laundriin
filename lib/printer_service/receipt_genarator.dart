@@ -44,13 +44,20 @@ class ReceiptGenerator {
 
     // ===== INFO ORDER =====
     bytes += _textLeftRight('No:', orderId, charWidth);
+    bytes += _textLeftRight('Pelanggan:', customerName, charWidth);
+    bytes += _textLeftRight('Kasir:', kasirName, charWidth);
     bytes += _textLeftRight(
-      'Tgl:',
+      'Tgl Pesan:',
       DateFormat('dd MMM yyyy  HH:mm', 'id_ID').format(orderDate),
       charWidth,
     );
-    bytes += _textLeftRight('Kasir:', kasirName, charWidth);
-    bytes += _textLeftRight('Pelanggan:', customerName, charWidth);
+    if (estimasi != null) {
+      bytes += _textLeftRight(
+        'Est Selesai:',
+        DateFormat('dd MMM yyyy HH:mm', 'id_ID').format(estimasi),
+        charWidth,
+      );
+    }
     bytes += _text(dividerDash);
 
     // ===== SERVICE INFO =====
@@ -128,13 +135,6 @@ class ReceiptGenerator {
     );
     bytes += _text(divider);
 
-    // ===== ESTIMASI =====
-    if (estimasi != null) {
-      bytes += _textCenter(
-        'Est. Selesai: ${DateFormat('dd MMM yyyy HH:mm', 'id_ID').format(estimasi)}',
-      );
-    }
-
     // ===== NOTES =====
     if (notes != null && notes.isNotEmpty) {
       bytes += _newLine();
@@ -144,7 +144,6 @@ class ReceiptGenerator {
     // ===== THANK YOU =====
     bytes += _newLine();
     bytes += _textCenter('Terima Kasih!');
-    bytes += _textCenter('Cucian Bersih & Wangi');
     bytes += _text(divider);
 
     // ===== FEED & CUT =====

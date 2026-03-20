@@ -391,6 +391,7 @@ class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
 
                           setState(() {
                             _adminUsername = newName;
+                            ShopSettings.currentUserDisplayName = newName;
                           });
                           Navigator.pop(context);
                         }

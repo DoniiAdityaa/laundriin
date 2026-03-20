@@ -465,10 +465,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           style: mBold.copyWith(fontSize: 16),
         ),
         const SizedBox(height: 8),
-        Text(
-          DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
-          style: sRegular.copyWith(color: textMuted),
-        ),
         if (widget.notes != null && widget.notes!.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text(
@@ -578,44 +574,33 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   // ===== SHARE TO WHATSAPP (TEXT ONLY, DIRECT TO CONTACT) =====
   Future<void> _handleWhatsAppDirect() async {
-    // 1. Format phone number
-    String phone = widget.customerPhone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (phone.startsWith('0')) {
-      phone = '62${phone.substring(1)}';
-    } else if (!phone.startsWith('62')) {
-      phone = '62$phone';
-    }
+    if (_isSharing) return;
+    setState(() => _isSharing = true);
 
-    // 2. Compose message text
-    final message =
-        'Halo ${widget.customerName}, berikut struk pesanan Anda:\n\n'
-        '🧾 *STRUK PEMESANAN*\n'
-        '━━━━━━━━━━━━━━━\n'
-        '📋 Order ID: ${widget.orderId}\n'
-        '👤 Pelanggan: ${widget.customerName}\n'
-        '📅 Tanggal: ${_formatDate(widget.orderDate)}\n'
-        '🧺 Layanan: ${_getServiceDisplay()}\n'
-        '⚡ Kecepatan: ${_getSpeedDisplay()}\n'
-        '━━━━━━━━━━━━━━━\n'
-        '💰 *Total: Rp ${_formatNumber(widget.totalPrice)}*\n'
-        '━━━━━━━━━━━━━━━\n\n'
-        'Terima kasih! 🙏';
-
-    // 3. Open WhatsApp directly to customer's number
-    final waUrl =
-        Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
-
-    if (await canLaunchUrl(waUrl)) {
-      await launchUrl(waUrl, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('WhatsApp tidak tersedia di perangkat ini'),
-            backgroundColor: Colors.red,
-          ),
-        );
+    try {
+      final file = await _captureReceipt();
+      if (file == null) {
+        if (mounted) setState(() => _isSharing = false);
+        return;
       }
+      // 2. Compose message text
+      final message =
+          'Halo ${widget.customerName}, berikut struk pesanan Anda:\n\n'
+          '🧾 *STRUK PEMESANAN*\n'
+          '━━━━━━━━━━━━━━━\n'
+          '📋 Order ID: ${widget.orderId}\n'
+          '👤 Pelanggan: ${widget.customerName}\n'
+          '📅 Tanggal: ${_formatDate(widget.orderDate)}\n'
+          '🧺 Layanan: ${_getServiceDisplay()}\n'
+          '⚡ Kecepatan: ${_getSpeedDisplay()}\n'
+          '━━━━━━━━━━━━━━━\n'
+          '💰 *Total: Rp ${_formatNumber(widget.totalPrice)}*\n'
+          '━━━━━━━━━━━━━━━\n\n'
+          'Terima kasih! 🙏';
+
+      await Share.shareXFiles([XFile(file.path)], text: message);
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
     }
   }
 

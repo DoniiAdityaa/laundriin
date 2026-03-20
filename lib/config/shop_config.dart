@@ -78,8 +78,8 @@ class ShopSettings {
   /// Nomor telepon toko (dari Firestore) - Default: 089682941139
   static String shopPhone = '0123456789';
 
-  /// Nama kasir (sama dengan owner, dari Firestore)
-  static String get currentUserName => ownerName;
+  /// Nama kasir — pakai username yang sedang login (admin/staff)
+  static String get currentUserName => currentUserDisplayName;
 
   /// Nama user yang sedang login (admin = ownerName, staff = staff username)
   static String currentUserDisplayName = 'Admin';

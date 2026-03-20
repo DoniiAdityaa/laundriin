@@ -322,7 +322,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           orderId: orderId,
           customerName: customerName,
           customerPhone: customerPhone,
-          kasirName: ShopSettings.currentUserName,
+          kasirName: _orderData['createdByName'] ?? ShopSettings.currentUserName,
           orderDate: createdAt?.toDate() ?? DateTime.now(),
           estimasiSelesai: DeliveryConfig.calculateEstimatedCompletion(
             createdAt?.toDate() ?? DateTime.now(),
