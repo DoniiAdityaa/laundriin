@@ -30,6 +30,11 @@ void main() async {
     statusBarIconBrightness: Brightness.dark,
     statusBarBrightness: Brightness.light,
   ));
+
+  // batasi cache
+  FirebaseFirestore.instance.settings = const Settings(
+    cacheSizeBytes: 10 * 1024 * 1024, // 10MB
+  );
   runApp(const MyApp());
 }
 
