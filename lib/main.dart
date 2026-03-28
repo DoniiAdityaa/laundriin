@@ -12,9 +12,11 @@ import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/utility/snackbar_helper.dart';
 import 'package:laundriin/utility/network_banner.dart';
+import 'package:laundriin/config/service_locator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await setUpLocator();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

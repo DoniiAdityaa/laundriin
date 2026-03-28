@@ -136,3 +136,16 @@ class NotificationConfig {
   /// Send invoice via WhatsApp setelah order
   static const bool invoiceViaWhatsApp = true;
 }
+
+class WablasConfig {
+  /// Base URL untuk backend Laravel (plugin-wablas)
+  /// Ganti dengan IP Address komputer Anda jika running lokal (contoh: http://192.168.1.5:8000)
+  /// Jika pakai Android Emulator, gunakan 10.0.2.2 untuk akses localhost komputer
+  static const String baseUrl = 'http://192.168.1.26:8000';
+
+  /// Endpoint untuk kirim pesan teks (sesuai yang ada di Laravel WhatsAppController)
+  static const String sendTextEndpoint = '/api/send-whatsapp';
+
+  /// Endpoint untuk cek nomor
+  static const String checkNumberEndpoint = '/api/check-whatsapp';
+}

@@ -10,6 +10,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/api/api_service.dart';
+import '../services/wablas_service.dart';
 import 'constant.dart';
 
 /// Global [GetIt.instance].
@@ -46,6 +47,12 @@ Future<void> setUpLocator() async {
     () => ApiService(
       serviceLocator.get<Dio>(),
       baseUrl: baseApi,
+    ),
+  );
+
+  serviceLocator.registerFactory<WablasService>(
+    () => WablasService(
+      serviceLocator.get<Dio>(),
     ),
   );
 

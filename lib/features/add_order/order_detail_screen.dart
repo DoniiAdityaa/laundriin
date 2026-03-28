@@ -8,8 +8,9 @@ import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/utility/app_loading_overlay.dart';
 import 'package:laundriin/utility/receipt_screen.dart';
 import 'package:laundriin/config/shop_config.dart';
+import 'package:laundriin/services/wablas_service.dart';
+import 'package:laundriin/config/service_locator.dart';
 import 'package:laundriin/services/cloudinary_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final Map<String, dynamic> orderData;
@@ -96,6 +97,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             backgroundColor: Colors.green,
           ),
         );
+
+        // Kirim WA otomatis jika status berubah ke process atau completed
+        if (newStatus == 'process' || newStatus == 'completed') {
+          _sendAutomatedStatusNotification(newStatus);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -700,13 +706,29 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           elevation: 2,
           shadowColor: const Color(0xFF25D366).withOpacity(0.3),
         ),
-        onPressed: () => _showWhatsAppTemplateSheet(),
+        onPressed: () => _handleDirectWhatsApp(),
         label: Text(
           'Kirim WhatsApp',
           style: smSemiBold.copyWith(color: Colors.white),
         ),
       ),
     );
+  }
+
+  // ===== SEND WHATSAPP DIRECTLY (BYPASS BOTTOM SHEET) =====
+  Future<void> _handleDirectWhatsApp() async {
+    final customerPhone = _orderData['customerPhone'] ?? '';
+    final customerName = _orderData['customerName'] ?? '';
+    final orderId = _orderData['orderId'] ?? '';
+    final totalPrice = _orderData['totalPrice'] ?? 0;
+    
+    final message = 
+        'Halo *${customerName}*,\n'
+        'Pesanan Anda dengan ID *${orderId}* di *${ShopSettings.shopName}* telah kami terima.\n\n'
+        '💰 *Total: Rp ${_formatNumber(totalPrice)}*\n\n'
+        'Terima kasih telah berlangganan! 🙏';
+
+    await _launchWhatsApp(customerPhone, message);
   }
 
   // ===== WHATSAPP TEMPLATE SHEET =====
@@ -1129,43 +1151,40 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  // ===== LAUNCH WHATSAPP =====
+  // ===== SEND VIA WABLAS API =====
   Future<void> _launchWhatsApp(String phone, String message) async {
-    // Clean phone number: remove spaces, dashes, etc.
-    String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
-
-    // Convert 08xx to 628xx
-    if (cleanPhone.startsWith('0')) {
-      cleanPhone = '62${cleanPhone.substring(1)}';
-    }
-    // If no country code, add 62
-    if (!cleanPhone.startsWith('+') && !cleanPhone.startsWith('62')) {
-      cleanPhone = '62$cleanPhone';
-    }
-    // Remove + prefix for wa.me
-    cleanPhone = cleanPhone.replaceAll('+', '');
-
-    final encodedMessage = Uri.encodeComponent(message);
-    final url = 'https://wa.me/$cleanPhone?text=$encodedMessage';
+    // 1. Tampilkan loading
+    AppLoading.show(context, message: 'Mengirim WhatsApp...');
 
     try {
-      if (await canLaunchUrl(Uri.parse(url))) {
-        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tidak dapat membuka WhatsApp'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      // 2. Bersihkan nomor telepon
+      String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = '62${cleanPhone.substring(1)}';
+      }
+      if (!cleanPhone.startsWith('62')) {
+        cleanPhone = '62$cleanPhone';
+      }
+
+      // 3. Panggil Wablas Service
+      final wablasService = serviceLocator.get<WablasService>();
+      await wablasService.sendText(cleanPhone, message);
+
+      if (mounted) {
+        AppLoading.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pesan WhatsApp berhasil dikirim! ✅'),
+            backgroundColor: Color(0xFF1F8F5F),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
+        AppLoading.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Gagal mengirim WhatsApp: $e ❌'),
             backgroundColor: Colors.red,
           ),
         );
@@ -1838,6 +1857,58 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
+  // ===== Helper: Send Automated WhatsApp Notification =====
+  Future<void> _sendAutomatedStatusNotification(String status) async {
+    // Only send if enabled in config
+    if (!NotificationConfig.invoiceViaWhatsApp) return;
+
+    try {
+      final wablasService = serviceLocator.get<WablasService>();
+      final customerPhone = _orderData['customerPhone'] ?? '';
+      final customerName = _orderData['customerName'] ?? 'Pelanggan';
+      final orderId = _orderData['orderId'] ?? 'N/A';
+      final totalPrice = _orderData['totalPrice'] ?? 0;
+
+      if (customerPhone.isEmpty) return;
+
+      // Format phone number
+      String formattedPhone = customerPhone.replaceAll(RegExp(r'[^\d]'), '');
+      if (formattedPhone.startsWith('0')) {
+        formattedPhone = '62${formattedPhone.substring(1)}';
+      } else if (!formattedPhone.startsWith('62')) {
+        formattedPhone = '62$formattedPhone';
+      }
+
+      String message = '';
+      if (status == 'completed') {
+        message = '''
+Halo *${customerName}*, 
+Kabar baik! Pesanan Laundry Anda dengan ID *${orderId}* telah **SELESAI** dan siap diambil/dikirim.
+
+*Detail:*
+Total: Rp ${_formatNumber(totalPrice)}
+
+Terima kasih telah mempercayakan cucian Anda kepada *${ShopSettings.shopName}*!
+''';
+      } else if (status == 'process') {
+        message = '''
+Halo *${customerName}*, 
+Pesanan Laundry Anda dengan ID *${orderId}* saat ini sedang dalam **PROSES** pengerjaan.
+
+Kami akan mengabari Anda kembali jika sudah selesai. Terima kasih!
+''';
+      }
+
+      if (message.isNotEmpty) {
+        await wablasService.sendText(formattedPhone, message);
+        print('[WABLAS] Automated notification sent for status: $status');
+      }
+    } catch (e) {
+      print('[WABLAS] Failed to send automated notification: $e');
+    }
+  }
+
+  // ===== Helper: Format Number =====
   String _formatNumber(int amount) {
     return amount.toString().replaceAllMapped(
           RegExp(r'\B(?=(\d{3})+(?!\d))'),

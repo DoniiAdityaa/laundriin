@@ -8,6 +8,8 @@ import 'package:laundriin/utility/app_dialogs.dart';
 import 'package:laundriin/utility/app_loading_overlay.dart';
 import 'package:laundriin/utility/receipt_screen.dart';
 import 'package:laundriin/config/shop_config.dart';
+import 'package:laundriin/services/wablas_service.dart';
+import 'package:laundriin/config/service_locator.dart';
 
 class AddOrderScreen extends StatefulWidget {
   const AddOrderScreen({super.key});
@@ -563,6 +565,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
       print('[SUCCESS] ✅ Pesanan berhasil disimpan ke database!');
       print('═══════════════════════════════════════════════════════════');
+
+      // Kirim Notifikasi WhatsApp via Wablas Laravel Backend
+      _sendWhatsAppNotification(orderId);
 
       // Order berhasil, reset pending state
       _pendingOrderId = null;
@@ -2770,6 +2775,41 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
       }
     });
     return price;
+  }
+
+  // ===== Helper: Send WhatsApp Notification =====
+  Future<void> _sendWhatsAppNotification(String orderId) async {
+    if (!NotificationConfig.invoiceViaWhatsApp) return;
+
+    try {
+      final wablasService = serviceLocator.get<WablasService>();
+      final customerPhone = _phoneC.text.trim();
+      
+      // Pastikan format nomor diawali dengan 62 (Wablas biasanya butuh format internasional)
+      String formattedPhone = customerPhone;
+      if (formattedPhone.startsWith('0')) {
+        formattedPhone = '62${formattedPhone.substring(1)}';
+      } else if (!formattedPhone.startsWith('62')) {
+        formattedPhone = '62$formattedPhone';
+      }
+
+      final message = '''
+Halo *${_nameC.text.trim()}*, 
+Pesanan Laundry Anda di *${ShopSettings.shopName}* telah kami terima.
+
+*Detail Pesanan:*
+ID: $orderId
+Total: Rp ${_formatNumber(_calculateTotalPrice())}
+
+Terima kasih telah mempercayakan cucian Anda kepada kami!
+''';
+
+      await wablasService.sendText(formattedPhone, message);
+      print('[WABLAS] Notification sent successfully to $formattedPhone');
+    } catch (e) {
+      print('[WABLAS] Failed to send notification: $e');
+      // Tidak perlu throw error supaya tidak menggagalkan flow order yang sudah sukses di Firestore
+    }
   }
 
   // ===== Helper: Format Number =====

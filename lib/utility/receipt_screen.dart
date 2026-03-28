@@ -9,12 +9,14 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
+
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/printer_service/printer_manager.dart';
+import 'package:laundriin/services/wablas_service.dart';
+import 'package:laundriin/config/service_locator.dart';
 import 'package:laundriin/printer_service/receipt_genarator.dart';
 
 class ReceiptScreen extends StatefulWidget {
