@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper: cek apakah user adalah staff dari shop owner tertentu
+    function isStaffOf(shopOwnerId) {
+      return exists(/databases/$(database)/documents/userShopMapping/$(request.auth.uid))
+        && get(/databases/$(database)/documents/userShopMapping/$(request.auth.uid)).data.shopOwnerId == shopOwnerId;
+    }
+    
+    // Users collection (admin profile & shop settings)
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId || isStaffOf(userId);
+      
+      // Members subcollection
+      match /members/{memberId} {
+        allow read: if request.auth.uid == userId || isStaffOf(userId);
+        allow write: if request.auth.uid == userId || request.auth.uid == memberId;
+      }
+    }
+    
+    // Shops collection (orders, customers, expenses)
+    match /shops/{shopId} {
+      // Khusus untuk orders, izinkan baca publik untuk fitur tracking
+      match /orders/{orderId} {
+        allow read: if true; // Izinkan pelanggan lacak pesanan (read-only)
+        allow write: if request.auth.uid == shopId || isStaffOf(shopId);
+      }
+      
+      // Aturan umum untuk subkoleksi lain (requires auth)
+      match /{subcollection}/{document=**} {
+        allow read, write: if request.auth.uid == shopId || isStaffOf(shopId);
+      }
+
+      allow read, write: if request.auth.uid == shopId || isStaffOf(shopId);
+    }
+    
+    // UserShopMapping (staff bisa baca mapping mereka sendiri)
+    match /userShopMapping/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow write: if request.auth != null;
+    }
+    
+    // Feedback collection (semua user yang login bisa kirim)
+    match /feedback/{feedbackId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
+  }
+}

@@ -1,1 +1,70 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"laundriin","appId":"1:551908410664:android:ab36bfb66f35a9a99afc1d","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"laundriin","appId":"1:551908410664:ios:f7171a39bd6a669f9afc1d","uploadDebugSymbols":true,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"laundriin","configurations":{"android":"1:551908410664:android:ab36bfb66f35a9a99afc1d","ios":"1:551908410664:ios:f7171a39bd6a669f9afc1d","web":"1:551908410664:web:8bc38cb07a5e03c29afc1d","windows":"1:551908410664:web:609ee8da48ef0a119afc1d"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/*.exe"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "flutter_service_worker.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "main.dart.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "laundriin",
+          "appId": "1:551908410664:android:ab36bfb66f35a9a99afc1d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "laundriin",
+          "appId": "1:551908410664:ios:f7171a39bd6a669f9afc1d",
+          "uploadDebugSymbols": true,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "laundriin",
+          "configurations": {
+            "android": "1:551908410664:android:ab36bfb66f35a9a99afc1d",
+            "ios": "1:551908410664:ios:f7171a39bd6a669f9afc1d",
+            "web": "1:551908410664:web:8bc38cb07a5e03c29afc1d",
+            "windows": "1:551908410664:web:609ee8da48ef0a119afc1d"
+          }
+        }
+      }
+    }
+  }
+}

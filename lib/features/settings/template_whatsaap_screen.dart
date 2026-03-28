@@ -109,6 +109,7 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
     {'key': '{phone}', 'label': 'No. HP'},
     {'key': '{layanan}', 'label': 'Layanan'},
     {'key': '{berat}', 'label': 'Berat'},
+    {'key': '{link}', 'label': 'Link Lacak'},
   ];
 
   List<Map<String, dynamic>> get _filteredTemplates {
@@ -573,7 +574,8 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
         .replaceAll('{tanggal}', '25 Feb 2026')
         .replaceAll('{phone}', '0812-3456-7890')
         .replaceAll('{layanan}', 'Cuci + Setrika')
-        .replaceAll('{berat}', '3.5 kg');
+        .replaceAll('{berat}', '3.5 kg')
+        .replaceAll('{link}', 'https://laundriin.web.app/#/track?o=ORD-240101&s=...ID_Toko...');
 
     showModalBottomSheet(
       context: context,

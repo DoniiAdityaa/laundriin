@@ -737,6 +737,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       dateStr = DateFormat('d MMM yyyy').format(createdAt.toDate());
     }
 
+    final trackingLink = 'https://laundriin.web.app/#/track?o=${_orderData['id']}&s=$_userId';
+
     // Replace variables in message
     String fillTemplate(String message) {
       return message
@@ -747,7 +749,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           .replaceAll('{tanggal}', dateStr)
           .replaceAll('{phone}', customerPhone)
           .replaceAll('{layanan}', serviceLabel)
-          .replaceAll('{berat}', '$weight kg');
+          .replaceAll('{berat}', '$weight kg')
+          .replaceAll('{link}', trackingLink);
     }
 
     // Default category based on order status

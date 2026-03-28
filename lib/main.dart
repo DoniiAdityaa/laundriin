@@ -12,6 +12,8 @@ import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/utility/snackbar_helper.dart';
 import 'package:laundriin/utility/network_banner.dart';
+import 'package:flutter/foundation.dart';
+import 'package:laundriin/features/tracking/tracking_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,7 +80,30 @@ class _MyAppState extends State<MyApp> {
           Locale('en', 'US'),
         ],
         theme: AppTheme.light,
-        home: _initialScreen(),
+        onGenerateRoute: (settings) {
+          final uri = Uri.parse(settings.name ?? '/');
+          
+          if (uri.path.startsWith('/track')) {
+            final orderId = uri.queryParameters['o'];
+            final shopId = uri.queryParameters['s'];
+            
+            return MaterialPageRoute(
+              builder: (context) => TrackingScreen(
+                initialOrderId: orderId,
+                initialShopId: shopId,
+              ),
+            );
+          }
+          
+          if (uri.path == '/login') {
+            return MaterialPageRoute(
+              builder: (context) => _initialScreen(),
+            );
+          }
+          
+          return null; // Fallback to 'home'
+        },
+        home: kIsWeb ? const TrackingScreen() : _initialScreen(),
       ),
     );
   }
