@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/config/shop_config.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({super.key});
@@ -31,6 +33,32 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     super.dispose();
   }
 
+  Future<void> _launchWhatsAapSupport(
+      String category, String message, int rating) async {
+    const adminPhone = '6289682941139';
+
+    final emoji = _getRatingText(rating);
+    final userName = ShopSettings.currentUserDisplayName;
+    final shopName = ShopSettings.shopName;
+    final fullMessage = "Hallow Admin Laundriin! 👋\n\n"
+        "Saya ingin melaporkan kendala/feedback:\n"
+        "----------------------------------\n"
+        "👤 *Nama:* $userName\n"
+        "🏠 *Toko:* $shopName\n"
+        "🏷️ *Kategori:* $category\n"
+        "⭐ *Rating:* $rating/5 $emoji\n"
+        "📝 *Pesan:* $message\n"
+        "----------------------------------\n"
+        "Mohon bantuannya ya, terima kasih!";
+
+    final encodedMessage = Uri.encodeComponent(fullMessage);
+
+    final url = 'https://wa.me/$adminPhone?text=$encodedMessage';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    }
+  }
+
   Future<void> _submitFeedback() async {
     if (_messageC.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -56,6 +84,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
+      final messageText = _messageC.text.trim();
+
       final feedbackData = {
         'userId': user?.uid ?? '',
         'userEmail': user?.email ?? '',
@@ -63,16 +93,19 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         'shopName': ShopSettings.shopName,
         'category': _selectedCategory,
         'rating': _rating,
-        'message': _messageC.text.trim(),
+        'message': messageText,
         'createdAt': FieldValue.serverTimestamp(),
-        'status': 'unread', // unread, read, resolved
+        // 'status': 'unread', // unread, read, resolved
       };
 
+      // 1. Simpan ke Firestore
       await FirebaseFirestore.instance.collection('feedback').add(feedbackData);
 
       if (mounted) {
         setState(() => _isSending = false);
-        _showSuccessDialog();
+
+        // 2. Tampilkan dialog sukses dengan pesan aslinya agar bisa dikirim ke WA
+        _showSuccessDialog(messageText);
       }
     } catch (e) {
       if (mounted) {
@@ -87,7 +120,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     }
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog(String messageText) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -102,18 +135,10 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F7EE),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF16A34A),
-                  size: 36,
-                ),
+              Image.asset(
+                'assets/images/check-2.png',
+                width: 55,
+                height: 55,
               ),
               const SizedBox(height: 20),
               const Text(
@@ -126,17 +151,51 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                "Feedback Anda telah berhasil dikirim. Kami akan meninjau dan merespons secepatnya.",
+                "Masukan Anda sudah kami terima dan akan segera kami tindak lanjuti.",
                 textAlign: TextAlign.center,
                 style: sRegular.copyWith(color: Colors.grey[600]),
               ),
               const SizedBox(height: 24),
+
+              // Tombol Chat WhatsApp (Opsi Baru)
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: blue500,
+                    backgroundColor: const Color(0xFF25D366), // Warna WA
                     elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: SvgPicture.asset(
+                    'assets/svg/whatsapp_.svg',
+                    width: 20,
+                    height: 20,
+                    color: white,
+                  ),
+                  label: Text(
+                    "Hubungi WhatsApp",
+                    style: sSemiBold.copyWith(color: white),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context); // close dialog
+                    Navigator.pop(context); // back to settings
+                    _launchWhatsAapSupport(
+                        _selectedCategory, messageText, _rating);
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Tombol Kembali Biasa
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: gray200),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -147,8 +206,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                     Navigator.pop(context); // back to settings
                   },
                   child: Text(
-                    "Kembali",
-                    style: sSemiBold.copyWith(color: white),
+                    "Nanti Saja",
+                    style: sSemiBold.copyWith(color: gray500),
                   ),
                 ),
               ),
@@ -225,7 +284,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                                     starIndex <= _rating
                                         ? Icons.star_rounded
                                         : Icons.star_outline_rounded,
-                                    size: 40,
+                                    size: 35,
                                     color: starIndex <= _rating
                                         ? const Color(0xFFFBCA24)
                                         : gray300,

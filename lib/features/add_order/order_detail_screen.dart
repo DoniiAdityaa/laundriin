@@ -322,7 +322,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           orderId: orderId,
           customerName: customerName,
           customerPhone: customerPhone,
-          kasirName: _orderData['createdByName'] ?? ShopSettings.currentUserName,
+          kasirName:
+              _orderData['createdByName'] ?? ShopSettings.currentUserName,
           orderDate: createdAt?.toDate() ?? DateTime.now(),
           estimasiSelesai: DeliveryConfig.calculateEstimatedCompletion(
             createdAt?.toDate() ?? DateTime.now(),
@@ -1202,9 +1203,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   String _getDefaultCategoryForStatus(String status) {
     switch (status) {
       case 'pending':
-        return 'Proses';
-      case 'process':
         return 'Menunggu';
+      case 'process':
+        return 'Proses';
       case 'completed':
         return 'Selesai';
       default:
