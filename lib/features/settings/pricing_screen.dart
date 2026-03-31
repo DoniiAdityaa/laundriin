@@ -181,126 +181,136 @@ class _PricingScreenState extends State<PricingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ===== Header =====
-              _buildHeader(
-                  title: 'Pengaturan Harga',
-                  subtitle: 'Kelola harga kiloan dan non-kiloan'),
-              const SizedBox(height: 24),
-              if (_isLoadingData)
-                Center(child: CircularProgressIndicator())
-              else ...[
-                // ===== Regular Service (Price + Estimasi) =====
-                _buildRegularServiceCard(),
-                const SizedBox(height: 24),
-                // ===== Express Service (Surcharge + Estimasi) =====
-                _buildExpressServiceCard(),
-                const SizedBox(height: 24),
-                // ===== Ironing =====
-                _buildPricingCard(
-                  leadingIcon: Icons.local_laundry_service_rounded,
-                  iconColor: blue500,
-                  bgColor: blue100,
-                  title: "Layanan Setrika",
-                  subtitle: "Hanya setrika",
-                  label: "Harga per Kilogram (Rp)",
-                  controller: _ironingC,
-                  currentText:
-                      "Saat ini: Rp ${_formatNumberWithComma(_parseRupiahToInt(_ironingC.text))} per kg",
-                ),
-                const SizedBox(height: 24),
-                // ===== Dry Wash =====
-                _buildPricingCard(
-                  leadingIcon: Icons.opacity_rounded,
-                  iconColor: blue500,
-                  bgColor: blue100,
-                  title: "Layanan Cuci Kering",
-                  subtitle: "Hanya cuci (semi-kering)",
-                  label: "Harga per Kilogram (Rp)",
-                  controller: _dryWashC,
-                  currentText:
-                      "Saat ini: Rp ${_formatNumberWithComma(_parseRupiahToInt(_dryWashC.text))} per kg",
-                ),
-                const SizedBox(height: 24),
-                // ===== Steam Ironing =====
-                _buildPricingCard(
-                  leadingIcon: Icons.cloud_rounded,
-                  iconColor: blue500,
-                  bgColor: blue100,
-                  title: "Layanan Setrika Uap",
-                  subtitle: "Setrika dengan uap",
-                  label: "Harga per Kilogram (Rp)",
-                  controller: _steamIroningC,
-                  currentText:
-                      "Saat ini: Rp ${_formatNumberWithComma(_parseRupiahToInt(_steamIroningC.text))} per kg",
-                ),
-                const SizedBox(height: 24),
-                _buildSatuanCard(
-                    leadingIcon: Icons.attach_money_rounded,
-                    title: 'Item Non-Kiloan',
-                    subtitle: 'berbasis item',
-                    label: 'Harga per Item (Rp)',
-                    controller: _jacketC,
-                    currentText: ''),
-
-                const SizedBox(height: 32),
-
-                // ===== Save Button =====
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: blue500,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 4,
-                      shadowColor: blue500.withOpacity(0.3),
-                    ),
-                    onPressed: _isLoading ? null : _savePricingData,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                              strokeWidth: 3,
-                            ),
-                          )
-                        : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SvgPicture.asset(
-                                'assets/svg/lets-icons_save.svg',
-                                color: white,
-                              ),
-                              const SizedBox(
-                                width: 8,
-                              ),
-                              Text(
-                                'Simpan Semua Perubahan',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+      appBar: AppBar(
+        backgroundColor: white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        automaticallyImplyLeading: false,
+        toolbarHeight: 80,
+        titleSpacing: 0,
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: _buildHeader(
+              title: 'Pengaturan Harga',
+              subtitle: 'Kelola harga kiloan dan non-kiloan'),
         ),
+      ),
+      body: SafeArea(
+        child: (_isLoading || _isLoadingData)
+            ? const Center(
+                child: CircularProgressIndicator(),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 10),
+                    // ===== Regular Service (Price + Estimasi) =====
+                    _buildRegularServiceCard(),
+                    const SizedBox(height: 24),
+                    // ===== Express Service (Surcharge + Estimasi) =====
+                    _buildExpressServiceCard(),
+                    const SizedBox(height: 24),
+                    // ===== Ironing =====
+                    _buildPricingCard(
+                      leadingIcon: Icons.local_laundry_service_rounded,
+                      iconColor: blue500,
+                      bgColor: blue100,
+                      title: "Layanan Setrika",
+                      subtitle: "Hanya setrika",
+                      label: "Harga per Kilogram (Rp)",
+                      controller: _ironingC,
+                      currentText:
+                          "Saat ini: Rp ${_formatNumberWithComma(_parseRupiahToInt(_ironingC.text))} per kg",
+                    ),
+                    const SizedBox(height: 24),
+                    // ===== Dry Wash =====
+                    _buildPricingCard(
+                      leadingIcon: Icons.opacity_rounded,
+                      iconColor: blue500,
+                      bgColor: blue100,
+                      title: "Layanan Cuci Kering",
+                      subtitle: "Hanya cuci (semi-kering)",
+                      label: "Harga per Kilogram (Rp)",
+                      controller: _dryWashC,
+                      currentText:
+                          "Saat ini: Rp ${_formatNumberWithComma(_parseRupiahToInt(_dryWashC.text))} per kg",
+                    ),
+                    const SizedBox(height: 24),
+                    // ===== Steam Ironing =====
+                    _buildPricingCard(
+                      leadingIcon: Icons.cloud_rounded,
+                      iconColor: blue500,
+                      bgColor: blue100,
+                      title: "Layanan Setrika Uap",
+                      subtitle: "Setrika dengan uap",
+                      label: "Harga per Kilogram (Rp)",
+                      controller: _steamIroningC,
+                      currentText:
+                          "Saat ini: Rp ${_formatNumberWithComma(_parseRupiahToInt(_steamIroningC.text))} per kg",
+                    ),
+                    const SizedBox(height: 24),
+                    _buildSatuanCard(
+                        leadingIcon: Icons.attach_money_rounded,
+                        title: 'Item Non-Kiloan',
+                        subtitle: 'berbasis item',
+                        label: 'Harga per Item (Rp)',
+                        controller: _jacketC,
+                        currentText: ''),
+
+                    const SizedBox(height: 32),
+
+                    // ===== Save Button =====
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: blue500,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 4,
+                          shadowColor: blue500.withOpacity(0.3),
+                        ),
+                        onPressed: _isLoading ? null : _savePricingData,
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                  strokeWidth: 3,
+                                ),
+                              )
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SvgPicture.asset(
+                                    'assets/svg/lets-icons_save.svg',
+                                    color: white,
+                                  ),
+                                  const SizedBox(
+                                    width: 8,
+                                  ),
+                                  Text(
+                                    'Simpan Semua Perubahan',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
       ),
     );
   }
@@ -527,9 +537,12 @@ class _PricingScreenState extends State<PricingScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: bgCard, // putih/soft
-        borderRadius: BorderRadius.circular(15),
-      ),
+          color: Colors.black.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: borderLight,
+            width: 1,
+          )),
       child: Row(
         children: [
           Expanded(

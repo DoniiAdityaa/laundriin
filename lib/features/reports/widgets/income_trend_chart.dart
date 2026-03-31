@@ -165,18 +165,20 @@ class _IncomeTrendChartState extends State<IncomeTrendChart> {
   String _formatRupiah(double value) {
     final val = value.toInt();
     if (val == 0) return 'Rp 0';
+
+    // untuk angka ribuan
     if (val < 1000000) {
       final k = val ~/ 1000;
-      return 'Rp ${k}K';
+      return 'Rp ${k}Rb';
     } else if (val < 1000000000) {
       final m = val / 1000000;
       if (m == m.toInt()) {
-        return 'Rp ${m.toInt()}M';
+        return 'Rp ${m.toInt()}Jt';
       } else {
-        return 'Rp ${m.toStringAsFixed(1)}M';
+        return 'Rp ${m.toStringAsFixed(1)}Jt';
       }
     }
-    return 'Rp ${(val / 1000000).toStringAsFixed(0)}M';
+    return 'Rp ${(val / 1000000).toStringAsFixed(0)}Jt';
   }
 
   /// Calculate chart scale and intervals

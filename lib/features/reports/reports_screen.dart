@@ -1038,7 +1038,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     size: 16, color: Colors.grey[400]),
                 const SizedBox(width: 8),
                 Text(
-                  'Avg ${_formatCurrency(_getAverageOrderPrice())}',
+                  'Rata-rata ${_formatCurrency(_getAverageOrderPrice())}',
                   style: smBold.copyWith(color: textPrimary, fontSize: 13),
                 ),
               ],

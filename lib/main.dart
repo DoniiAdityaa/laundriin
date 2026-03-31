@@ -12,6 +12,7 @@ import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/utility/snackbar_helper.dart';
 import 'package:laundriin/utility/network_banner.dart';
+import 'package:laundriin/utility/offline_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:laundriin/features/tracking/tracking_screen.dart';
 
@@ -82,11 +83,11 @@ class _MyAppState extends State<MyApp> {
         theme: AppTheme.light,
         onGenerateRoute: (settings) {
           final uri = Uri.parse(settings.name ?? '/');
-          
+
           if (uri.path.startsWith('/track')) {
             final orderId = uri.queryParameters['o'];
             final shopId = uri.queryParameters['s'];
-            
+
             return MaterialPageRoute(
               builder: (context) => TrackingScreen(
                 initialOrderId: orderId,
@@ -94,13 +95,13 @@ class _MyAppState extends State<MyApp> {
               ),
             );
           }
-          
+
           if (uri.path == '/login') {
             return MaterialPageRoute(
               builder: (context) => _initialScreen(),
             );
           }
-          
+
           return null; // Fallback to 'home'
         },
         home: kIsWeb ? const TrackingScreen() : _initialScreen(),
@@ -126,24 +127,9 @@ class _MyAppState extends State<MyApp> {
             );
           }
           if (snapshot.hasError) {
-            return Scaffold(
-              body: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('Gagal memuat data toko\n${snapshot.error}',
-                        textAlign: TextAlign.center),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: _retry,
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
-                ),
-              ),
+            return OfflineScreen(
+              errorMessage: snapshot.error.toString(),
+              onRetry: _retry,
             );
           }
           // Jika false = staff dihapus, arahkan ke login

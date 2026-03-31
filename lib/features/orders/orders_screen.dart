@@ -327,20 +327,22 @@ class _OrdersScreenState extends State<OrdersScreen> {
     if (index == 1) count = _processCount;
 
     return GestureDetector(
-      onTap: () {
-        if (mounted) {
-          setState(() {
-            selectedTab = index;
-          });
+      onTap: () async {
+        if (!mounted) return;
 
-          // Load data for this tab if not already loaded
-          if (!_tabLoadingState.containsKey(index) ||
-              (_tabLoadingState[index] == false && _allOrders.isEmpty)) {
-            _loadOrdersForTab(index);
-          } else {
-            _filterOrders();
-          }
-        }
+        setState(() {
+          selectedTab = index;
+          _tabLoadingState[index] = true;
+        });
+
+        await Future.delayed(const Duration(milliseconds: 200));
+
+        if (!mounted) return;
+
+        setState(() {
+          _tabLoadingState[index] = false;
+          _filteredOrders = _calculateFilteredOrders();
+        });
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
