@@ -6,8 +6,10 @@ import 'package:laundriin/features/orders/orders_screen.dart';
 import 'package:laundriin/features/reports/reports_screen.dart';
 import 'package:laundriin/features/settings/setting_screen.dart';
 import 'package:laundriin/ui/color.dart';
+import 'package:laundriin/ui/shared_widget/offline_dialog.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:flutter_lazy_indexed_stack/flutter_lazy_indexed_stack.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -78,7 +80,16 @@ class _MainNavigationState extends State<MainNavigation> {
             Transform.translate(
               offset: const Offset(0, -25), // ← Push ke atas (negative = up)
               child: GestureDetector(
-                onTap: () {
+                onTap: () async {
+                  final connectivityResult =
+                      await Connectivity().checkConnectivity();
+                  if (connectivityResult.last == ConnectivityResult.none) {
+                    if (!context.mounted) return;
+                    showOfflineDialog(context, featureName: 'tambah pesana');
+                    return;
+                  }
+
+                  if (!context.mounted) return;
                   Navigator.push(context, MaterialPageRoute(builder: (context) {
                     return const AddOrderScreen();
                   }));

@@ -8,11 +8,13 @@ import 'package:laundriin/features/settings/feedback_screen.dart';
 import 'package:laundriin/features/settings/shop_information.dart';
 import 'package:laundriin/features/settings/team_menagement_screen.dart';
 import 'package:laundriin/features/settings/template_whatsaap_screen.dart';
+import 'package:laundriin/ui/shared_widget/offline_dialog.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/features/auth/login_screen.dart';
 import 'package:laundriin/features/settings/pricing_screen.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({super.key});
@@ -723,7 +725,15 @@ class _SettingScreenState extends State<SettingScreen> {
   // =========================
   // Dialog Edit Username (Staff)
   // =========================
-  void _showStaffEditUsernameDialog() {
+  Future<void> _showStaffEditUsernameDialog() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.last == ConnectivityResult.none) {
+      if (!mounted) return;
+      showOfflineDialog(context, featureName: 'edit username');
+      return;
+    }
+
+    if (!mounted) return;
     _usernameC.text = _staffUsername;
 
     showDialog(
@@ -850,7 +860,15 @@ class _SettingScreenState extends State<SettingScreen> {
       color: bgCard,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        onTap: onTap,
+        onTap: () async {
+          final connectivityResult = await Connectivity().checkConnectivity();
+          if (connectivityResult.last == ConnectivityResult.none) {
+            if (!context.mounted) return;
+            showOfflineDialog(context, featureName: 'mengakses menu ini');
+            return;
+          }
+          onTap();
+        },
         borderRadius: BorderRadius.circular(18),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),

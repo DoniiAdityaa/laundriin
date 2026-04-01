@@ -5,10 +5,10 @@ import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:laundriin/ui/color.dart';
+import 'package:laundriin/ui/shared_widget/offline_dialog.dart';
 import 'package:laundriin/ui/typography.dart';
 import 'package:laundriin/config/shop_config.dart';
-import 'package:open_file/open_file.dart';
-import 'report_pdf_generator.dart';
+
 import 'widgets/income_trend_chart.dart';
 import 'widgets/service_distribution_chart.dart';
 
@@ -1867,7 +1867,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   // ===== ADD EXPENSE DIALOG =====
-  void _showAddExpenseDialog({Map<String, dynamic>? expense}) {
+  Future<void> _showAddExpenseDialog({Map<String, dynamic>? expense}) async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.last == ConnectivityResult.none) {
+      if (!mounted) return;
+      showOfflineDialog(context,
+          featureName:
+              expense == null ? 'tambah pengeluaran' : 'edit pengeleuaran');
+      return;
+    }
+
+    if (!mounted) return;
     final nameController = TextEditingController(text: expense?['name'] ?? '');
     final amountController = TextEditingController(
         text: expense != null ? expense['amount'].toString() : '');

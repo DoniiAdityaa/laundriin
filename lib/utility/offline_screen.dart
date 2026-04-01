@@ -24,17 +24,6 @@ class OfflineScreen extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 520),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(26, 40, 26, 32),
-                decoration: BoxDecoration(
-                  color: bgCard,
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 30,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
