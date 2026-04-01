@@ -45,7 +45,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
   List<Map<String, dynamic>> _pendingOrders = [];
   StreamSubscription? _pendingOrdersSubscription;
 
-  bool _isDownloadingPdf = false;
   bool _isLoading = true; // State loading baru
   bool _listenersSetup = false;
   StreamSubscription? _connectivitySubscription;
@@ -2217,61 +2216,61 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   // ===== SINGLE DOWNLOAD PDF BUTTON =====
   // ===== DOWNLOAD PDF =====
-  Future<void> _downloadPdf() async {
-    setState(() => _isDownloadingPdf = true);
+  // Future<void> _downloadPdf() async {
+  //   // setState(() => _isDownloadingPdf = true);
 
-    try {
-      final file = await ReportPdfGenerator.generateAndSave(
-        shopName: ShopSettings.shopName,
-        shopAddress: ShopSettings.shopAddress,
-        shopPhone: ShopSettings.shopPhone,
-        selectedPeriod: selectedPeriod,
-        selectedDate: _selectedDate,
-        totalIncome: _currentPeriodIncome,
-        totalExpense: _currentPeriodExpense,
-        totalOrders: _currentPeriodOrders,
-        averageOrderPrice: _getAverageOrderPrice(),
-        previousPeriodIncome: _previousPeriodIncome,
-        expenseItems: _expenseItems,
-        topCustomers: _topCustomers,
-      );
+  //   try {
+  //     final file = await ReportPdfGenerator.generateAndSave(
+  //       shopName: ShopSettings.shopName,
+  //       shopAddress: ShopSettings.shopAddress,
+  //       shopPhone: ShopSettings.shopPhone,
+  //       selectedPeriod: selectedPeriod,
+  //       selectedDate: _selectedDate,
+  //       totalIncome: _currentPeriodIncome,
+  //       totalExpense: _currentPeriodExpense,
+  //       totalOrders: _currentPeriodOrders,
+  //       averageOrderPrice: _getAverageOrderPrice(),
+  //       previousPeriodIncome: _previousPeriodIncome,
+  //       expenseItems: _expenseItems,
+  //       topCustomers: _topCustomers,
+  //     );
 
-      if (file != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Laporan berhasil dibuat!'),
-            backgroundColor: const Color(0xFF1F8F5F),
-            duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: 'Buka',
-              textColor: Colors.white,
-              onPressed: () {
-                OpenFile.open(file.path);
-              },
-            ),
-          ),
-        );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal menyimpan laporan'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isDownloadingPdf = false);
-    }
-  }
+  //     if (file != null && mounted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: const Text('Laporan berhasil dibuat!'),
+  //           backgroundColor: const Color(0xFF1F8F5F),
+  //           duration: const Duration(seconds: 4),
+  //           action: SnackBarAction(
+  //             label: 'Buka',
+  //             textColor: Colors.white,
+  //             onPressed: () {
+  //               OpenFile.open(file.path);
+  //             },
+  //           ),
+  //         ),
+  //       );
+  //     } else if (mounted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         const SnackBar(
+  //           content: Text('Gagal menyimpan laporan'),
+  //           backgroundColor: Colors.red,
+  //         ),
+  //       );
+  //     }
+  //   } catch (e) {
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text('Error: $e'),
+  //           backgroundColor: Colors.red,
+  //         ),
+  //       );
+  //     }
+  //   } finally {
+  //     if (mounted) setState(() => _isDownloadingPdf = false);
+  //   }
+  // }
 
   // ===== HELPER FUNCTION =====
   String _getPeriodLabel() {

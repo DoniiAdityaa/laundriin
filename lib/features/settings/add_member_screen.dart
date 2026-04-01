@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:laundriin/ui/color.dart';
 import 'package:laundriin/ui/typography.dart';
 
@@ -15,144 +16,56 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   final _usernameC = TextEditingController();
   final _emailC = TextEditingController();
   final _passwordC = TextEditingController();
+  final _confirmPasswordC = TextEditingController();
   final _adminPasswordC = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _usernameC.addListener(() => setState(() {}));
+    _emailC.addListener(() => setState(() {}));
+    _passwordC.addListener(() => setState(() {}));
+    _confirmPasswordC.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
     _usernameC.dispose();
     _emailC.dispose();
     _passwordC.dispose();
+    _confirmPasswordC.dispose();
     _adminPasswordC.dispose();
     super.dispose();
   }
 
-  /// Tampilkan dialog minta password admin sebelum proses
-  void _confirmAndSave() {
+  bool get _isFormFilled {
+    return _usernameC.text.trim().isNotEmpty &&
+        _emailC.text.trim().isNotEmpty &&
+        _passwordC.text.trim().isNotEmpty &&
+        _confirmPasswordC.text.trim().isNotEmpty;
+  }
+
+  void _saveMember() async {
     final username = _usernameC.text.trim();
     final email = _emailC.text.trim();
     final password = _passwordC.text.trim();
+    final confirmPassword = _confirmPasswordC.text.trim();
 
-    // Validasi
-    if (username.isEmpty) {
-      _showSnackBar('Username tidak boleh kosong', isError: true);
-      return;
-    }
-    if (email.isEmpty) {
-      _showSnackBar('Email tidak boleh kosong', isError: true);
-      return;
-    }
-    if (password.isEmpty) {
-      _showSnackBar('Password tidak boleh kosong', isError: true);
+    // Validasi tambahan
+    if (!_isFormFilled) return;
+
+    if (password != confirmPassword) {
+      _showSnackBar('Konfirmasi password tidak cocok', isError: true);
       return;
     }
     if (password.length < 6) {
       _showSnackBar('Password minimal 6 karakter', isError: true);
       return;
     }
-
-    // Minta password admin untuk konfirmasi
-    _adminPasswordC.clear();
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Konfirmasi Password', style: smSemiBold),
-              const SizedBox(height: 8),
-              Text(
-                'Masukkan password akun Anda untuk melanjutkan',
-                style: xsRegular.copyWith(color: gray500),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _adminPasswordC,
-                obscureText: true,
-                style: sRegular.copyWith(color: textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Password Anda',
-                  hintStyle: sRegular.copyWith(color: textMuted),
-                  filled: true,
-                  fillColor: bgInput,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: borderLight),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: borderFocus, width: 1.2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF3F4F6),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        'Batal',
-                        style: sSemiBold.copyWith(
-                          color: const Color(0xFF111827),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: blue500,
-                        elevation: 2,
-                        shadowColor: blue500.withOpacity(0.3),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () {
-                        if (_adminPasswordC.text.trim().isEmpty) return;
-                        Navigator.pop(context);
-                        _saveMember(_adminPasswordC.text.trim());
-                      },
-                      child: Text(
-                        'Lanjutkan',
-                        style: sSemiBold.copyWith(color: white),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _saveMember(String adminPassword) async {
-    final username = _usernameC.text.trim();
-    final email = _emailC.text.trim();
-    final password = _passwordC.text.trim();
 
     setState(() => _isLoading = true);
 
@@ -167,34 +80,28 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
       return;
     }
 
-    final adminEmail = currentUser.email!;
     final adminUid = currentUser.uid;
 
-    // Helper: pastikan admin selalu login balik
-    Future<void> ensureAdminLogin() async {
-      if (FirebaseAuth.instance.currentUser?.uid != adminUid) {
-        try {
-          await FirebaseAuth.instance.signOut();
-        } catch (_) {}
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: adminEmail,
-          password: adminPassword,
-        );
-      }
-    }
-
     try {
-      // Bikin akun Firebase Auth baru untuk staff
-      final staffCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      // Gunakan instance Firebase terpisah agar tidak melogout admin
+      FirebaseApp tempApp = await Firebase.initializeApp(
+        name: 'TempAuthApp',
+        options: Firebase.app().options,
+      );
+
+      final staffCredential = await FirebaseAuth.instanceFor(app: tempApp)
+          .createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       final staffUid = staffCredential.user!.uid;
 
+      // Hapus app sekunder
+      await tempApp.delete();
+
       final firestore = FirebaseFirestore.instance;
 
-      // Staff di members/ subcollection admin
+      // Staff di members/ subcollection admin (menggunakan default app yang aktif)
       await firestore
           .collection('users')
           .doc(adminUid)
@@ -213,73 +120,19 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         'role': 'staff',
       });
 
-      // Login balik ke akun admin
-      await ensureAdminLogin();
-
       if (!mounted) return;
       setState(() => _isLoading = false);
       _showSnackBar('$username berhasil ditambahkan');
       Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        // Re-aktivasi: login sebagai staff lama → tulis ulang doc
-        try {
-          await FirebaseAuth.instance.signOut();
-          final staffCredential =
-              await FirebaseAuth.instance.signInWithEmailAndPassword(
-            email: email,
-            password: password,
-          );
-          final staffUid = staffCredential.user!.uid;
-
-          final firestore = FirebaseFirestore.instance;
-          await firestore
-              .collection('users')
-              .doc(adminUid)
-              .collection('members')
-              .doc(staffUid)
-              .set({
-            'username': username,
-            'email': email,
-            'role': 'staff',
-            'joinedAt': FieldValue.serverTimestamp(),
-          });
-
-          await firestore.collection('userShopMapping').doc(staffUid).set({
-            'shopOwnerId': adminUid,
-            'role': 'staff',
-          });
-
-          await ensureAdminLogin();
-
-          if (!mounted) return;
-          setState(() => _isLoading = false);
-          _showSnackBar('$username berhasil diaktifkan kembali');
-          Navigator.pop(context);
-          return;
-        } catch (_) {
-          // Gagal → pastikan admin login balik
-          try {
-            await ensureAdminLogin();
-          } catch (_) {}
-
-          if (!mounted) return;
-          setState(() => _isLoading = false);
-          _showSnackBar(
-            'Email sudah terdaftar dan password tidak cocok. Gunakan email lain.',
-            isError: true,
-          );
-          return;
-        }
-      }
-
-      // Error lain → pastikan admin login balik
-      try {
-        await ensureAdminLogin();
-      } catch (_) {}
-
       if (!mounted) return;
       setState(() => _isLoading = false);
+      
+      if (e.code == 'email-already-in-use') {
+        _showSnackBar('Email sudah terdaftar. Gunakan email lain.', isError: true);
+        return;
+      }
+
       String message = 'Gagal menambahkan anggota';
       if (e.code == 'invalid-email') {
         message = 'Format email tidak valid';
@@ -288,11 +141,6 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
       }
       _showSnackBar(message, isError: true);
     } catch (e) {
-      // Error umum → pastikan admin login balik
-      try {
-        await ensureAdminLogin();
-      } catch (_) {}
-
       if (!mounted) return;
       setState(() => _isLoading = false);
       _showSnackBar('Error: $e', isError: true);
@@ -337,13 +185,14 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: blue500,
+                    disabledBackgroundColor: const Color(0xFFE5E7EB), // abu-abu muda saat disabled
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    elevation: 4,
+                    elevation: _isFormFilled ? 4 : 0,
                     shadowColor: blue500.withOpacity(0.3),
                   ),
-                  onPressed: _isLoading ? null : _confirmAndSave,
+                  onPressed: (_isLoading || !_isFormFilled) ? null : _saveMember,
                   child: _isLoading
                       ? const SizedBox(
                           height: 24,
@@ -359,14 +208,14 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.person_add_rounded,
-                                color: white, size: 20),
+                                color: _isFormFilled ? Colors.white : const Color(0xFF9CA3AF), size: 20),
                             const SizedBox(width: 8),
                             Text(
                               'Simpan Anggota',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
-                                color: Colors.white,
+                                color: _isFormFilled ? Colors.white : const Color(0xFF9CA3AF),
                               ),
                             ),
                           ],
@@ -598,6 +447,58 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
             ),
           ),
 
+          const SizedBox(height: 16),
+
+          // ===== Konfirmasi Password =====
+          Text('Konfirmasi Password', style: smBold),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _confirmPasswordC,
+            obscureText: _obscureConfirmPassword,
+            style: sRegular.copyWith(color: textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Masukkan ulang password',
+              hintStyle: sRegular.copyWith(color: textMuted),
+              prefixIcon: Padding(
+                padding: const EdgeInsets.only(left: 14, right: 10),
+                child:
+                    Icon(Icons.lock_outline_rounded, size: 20, color: gray400),
+              ),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 0, minHeight: 0),
+              suffixIcon: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _obscureConfirmPassword = !_obscureConfirmPassword;
+                    });
+                  },
+                  icon: Icon(
+                    _obscureConfirmPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 20,
+                    color: gray400,
+                  ),
+                ),
+              ),
+              filled: true,
+              fillColor: bgInput,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: borderFocus, width: 1.2),
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
 
           // ===== Info hint =====

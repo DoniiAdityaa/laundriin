@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -25,6 +27,8 @@ class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
   List<Map<String, dynamic>> _members = [];
   bool _isLoading = true;
 
+  StreamSubscription<QuerySnapshot>? _membersSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -34,6 +38,7 @@ class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
   @override
   void dispose() {
     _usernameC.dispose();
+    _membersSubscription?.cancel();
     super.dispose();
   }
 
@@ -61,31 +66,31 @@ class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
         _adminUsername = ShopSettings.ownerName;
       }
 
-      // Load staff dari members/ subcollection
-      final staffSnapshot = await _firestore
+      // Mulai Subscription real-time ke members/ subcollection
+      _membersSubscription = _firestore
           .collection('users')
           .doc(_userId)
           .collection('members')
           .where('role', isEqualTo: 'staff')
-          .get();
-
-      final staffList = staffSnapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'uid': doc.id,
-          'username': data['username'] ?? '',
-          'email': data['email'] ?? '',
-        };
-      }).toList();
-
-      if (mounted) {
-        setState(() {
-          _members = staffList;
-          _isLoading = false;
-        });
-      }
+          .snapshots() // <--- Ini yang bikin dia real-time!
+          .listen((snapshot) {
+        final staffList = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            'uid': doc.id,
+            'username': data['username'] ?? '',
+            'email': data['email'] ?? '',
+          };
+        }).toList();
+        if (mounted) {
+          setState(() {
+            _members = staffList;
+            _isLoading = false;
+          });
+        }
+      });
     } catch (e) {
-      print('[ERROR] Load team data: $e');
+      print('[ERROR] Load team subscription: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -97,40 +102,42 @@ class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
     return Scaffold(
       backgroundColor: bgApp,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ===== Header =====
-              _buildHeader(
-                title: 'Kelola Tim',
-                subtitle: 'Kelola anggota tim toko Anda',
+        child: Column(
+          children: [
+            // Header tetap di atas
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: _buildHeader(
+                title: 'Informasi Toko',
+                subtitle: 'Kelola informasi toko Anda',
               ),
-              const SizedBox(height: 24),
+            ),
 
-              // ===== Loading atau Content =====
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.only(top: 60),
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              else ...[
-                // ===== Card Akun Saya =====
-                _buildMyAccountCard(),
-                const SizedBox(height: 16),
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Card akun saya
+                          _buildMyAccountCard(),
+                          const SizedBox(height: 16),
 
-                // ===== Card Anggota Tim =====
-                _buildTeamMembersCard(),
-                const SizedBox(height: 24),
+                          // Card anggota tim
+                          _buildTeamMembersCard(),
+                          const SizedBox(height: 24),
 
-                // ===== Tombol Tambah Anggota =====
-                _buildAddMemberButton(),
-              ],
-            ],
-          ),
+                          // Tombol tambah anggota
+                          _buildAddMemberButton(),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
         ),
       ),
     );
@@ -605,7 +612,7 @@ class _TeamMenagementScreenState extends State<TeamMenagementScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              'Staff',
+              'Pegawai',
               style: xsSemiBold.copyWith(
                 color: const Color(0xFF16A34A),
               ),

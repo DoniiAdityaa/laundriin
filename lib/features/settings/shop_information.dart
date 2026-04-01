@@ -118,67 +118,82 @@ class _ShopInformationState extends State<ShopInformation> {
     return Scaffold(
       backgroundColor: bgApp,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // ===== Header =====
-            _buildHeader(
-                title: 'Informasi Toko',
-                subtitle: 'Kelola informasi toko Anda'),
-            const SizedBox(height: 24),
-            if (_isLoadingData)
-              const Center(child: CircularProgressIndicator())
-            else ...[
-              _buildCardShop(),
-              const SizedBox(height: 32),
-              // ===== Save Button =====
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: blue500,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 4,
-                    shadowColor: blue500.withOpacity(0.3),
-                  ),
-                  onPressed: _isLoading ? null : _saveShopData,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SvgPicture.asset(
-                              'assets/svg/lets-icons_save.svg',
-                              color: white,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Simpan Perubahan',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
+        child: Column(
+          children: [
+            // 1. Header ditaruh di luar Scroll biar diam di atas
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: _buildHeader(
+                  title: 'Informasi Toko',
+                  subtitle: 'Kelola informasi toko Anda'),
+            ),
+
+            // 2. Sisa layarnya kita pakai Expanded
+            Expanded(
+              child: _isLoadingData
+                  ? const Center(
+                      // Nah, Loading-nya sekarang akan otomatis di TENGAH persis!
+                      child: CircularProgressIndicator(),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildCardShop(),
+                          const SizedBox(height: 32),
+                          // ===== Save Button =====
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: blue500,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 4,
+                                shadowColor: blue500.withOpacity(0.3),
                               ),
+                              onPressed: _isLoading ? null : _saveShopData,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                Colors.white),
+                                        strokeWidth: 3,
+                                      ),
+                                    )
+                                  : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        SvgPicture.asset(
+                                          'assets/svg/lets-icons_save.svg',
+                                          color: white,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Simpan Perubahan',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                             ),
-                          ],
-                        ),
-                ),
-              ),
-            ],
-          ]),
+                          ), // End of Save Button
+                        ],
+                      ),
+                    ),
+            ),
+          ],
         ),
       ),
     );
