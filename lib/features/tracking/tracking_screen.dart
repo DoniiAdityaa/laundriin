@@ -48,6 +48,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
     }
     setState(() {
       _orderId = _orderIdController.text.trim();
+      // Tetapkan shopId ke default saat melakukan pencarian manual
+      _shopId = _defaultShopId;
       _isSearching = true;
     });
   }
@@ -196,6 +198,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 setState(() {
                   _isSearching = false;
                   _orderIdController.clear();
+                  _orderId = null;
+                  _shopId = null;
                 });
               },
               child: const Text('Cari Pesanan Lain'),
