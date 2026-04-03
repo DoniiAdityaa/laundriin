@@ -9,7 +9,10 @@ import 'package:laundriin/utility/app_loading_overlay.dart';
 import 'package:laundriin/utility/receipt_screen.dart';
 import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/services/cloudinary_service.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:laundriin/features/orders/cubit/wablas_cubit.dart';
+import 'package:laundriin/features/orders/cubit/wablas_state.dart';
+import 'package:laundriin/utility/snackbar_helper.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final Map<String, dynamic> orderData;
@@ -89,6 +92,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         _currentStatus = newStatus;
         _orderData['status'] = newStatus;
       });
+
+      // Pemicu otomatis pengiriman WhatsApp "Selesai" saat status diubah ke 'completed'
+      if (newStatus == 'completed') {
+        print('[LOG] Status Selesai: Mengirim WhatsApp otomatis...');
+        _sendAutomatedWhatsApp(_orderData);
+      }
 
       if (mounted) {
         AppLoading.hide(context);
@@ -434,339 +443,346 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
 
     String paymentLabel = _paymentStatus == 'paid' ? 'LUNAS' : 'BELUM LUNAS';
-    Color paymentColor = _paymentStatus == 'paid' ? Colors.green[700]! : Colors.red[700]!;
-    Color paymentBgColor = _paymentStatus == 'paid' ? Colors.green[50]! : Colors.red[50]!;
+    Color paymentColor =
+        _paymentStatus == 'paid' ? Colors.green[700]! : Colors.red[700]!;
+    Color paymentBgColor =
+        _paymentStatus == 'paid' ? Colors.green[50]! : Colors.red[50]!;
 
-    return Scaffold(
-      backgroundColor: bgApp,
-      appBar: AppBar(
+    return BlocListener<WablasCubit, WablasState>(
+      listener: (context, state) {
+        if (state is WablasLoading) {
+          AppLoading.show(context);
+        } else if (state is WablasSuccess) {
+          AppLoading.hide(context);
+          SnackbarHelper.showSuccess(state.message);
+        } else if (state is WablasFailure) {
+          AppLoading.hide(context);
+          SnackbarHelper.showError(state.error);
+        }
+      },
+      child: Scaffold(
         backgroundColor: bgApp,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            onPressed: _openReceipt,
-            icon: SvgPicture.asset(
-              'assets/svg/receipt-2.svg',
-              width: 20,
-              height: 20,
-              colorFilter:
-                  const ColorFilter.mode(Colors.black, BlendMode.srcIn),
-            ),
+        appBar: AppBar(
+          backgroundColor: bgApp,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
           ),
-        ],
-        title: Text(
-          'Detail Pesanan',
-          style: mBold,
+          actions: [
+            IconButton(
+              onPressed: _openReceipt,
+              icon: SvgPicture.asset(
+                'assets/svg/receipt-2.svg',
+                width: 20,
+                height: 20,
+                colorFilter:
+                    const ColorFilter.mode(Colors.black, BlendMode.srcIn),
+              ),
+            ),
+          ],
+          title: Text(
+            'Detail Pesanan',
+            style: mBold,
+          ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ===== CUSTOMER CARD =====
-            _sectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: blue500.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          child: SvgPicture.asset(
-                            'assets/svg/user.svg',
-                            width: 22,
-                            height: 22,
-                            color: blue500,
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ===== CUSTOMER CARD =====
+              _sectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: blue500.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Center(
+                            child: SvgPicture.asset(
+                              'assets/svg/user.svg',
+                              width: 22,
+                              height: 22,
+                              color: blue500,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(customerName, style: mBold),
+                            const SizedBox(height: 5),
+                            Text(
+                              customerPhone,
+                              style: sRegular.copyWith(color: textMuted),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'ID Pesanan: $orderId',
+                      style: xsRegular.copyWith(color: textMuted),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ===== STATUS =====
+              _sectionCard(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Status', style: sRegular.copyWith(color: textMuted)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: statusBgColor,
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Text(
+                        statusLabel.toUpperCase(),
+                        style: smSemiBold.copyWith(color: statusColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ===== PAYMENT STATUS =====
+              _sectionCard(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Pembayaran',
+                        style: sRegular.copyWith(color: textMuted)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: paymentBgColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        paymentLabel,
+                        style: smSemiBold.copyWith(
+                            color: paymentColor, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ===== ORDER INFO =====
+              _sectionCard(
+                child: Column(
+                  children: [
+                    _infoRow(
+                      icon: 'assets/svg/basket.svg',
+                      title: 'Kategori',
+                      value: categoryLabel,
+                    ),
+                    _infoRow(
+                      icon: 'assets/svg/speed.svg',
+                      title: 'Kecepatan',
+                      value: speedLabel,
+                    ),
+                    if (weight > 0)
+                      _infoRow(
+                        icon: 'assets/svg/box.svg',
+                        title: 'Berat',
+                        value: '$weight kg',
+                      ),
+                    if (items.isNotEmpty)
+                      _infoRow(
+                        icon: 'assets/svg/box.svg',
+                        title: 'Item',
+                        value: '${items.length} buah',
+                      ),
+                    if (notes.isNotEmpty)
+                      _infoRow(
+                        icon: 'assets/svg/notes.svg',
+                        title: 'Catatan',
+                        value: notes,
+                      ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ===== PRICE =====
+              _sectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Harga Total',
+                        style: sRegular.copyWith(color: textMuted)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Rp ${_formatNumber(totalPrice)}',
+                      style: lBold.copyWith(color: Colors.blue),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ===== CREATED TIME =====
+              _sectionCard(
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time,
+                            size: 18, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Dibuat: $dateStr',
+                          style: sRegular.copyWith(color: textMuted),
+                        ),
+                      ],
+                    ),
+                    if (_orderData['createdByName'] != null) ...[
+                      const SizedBox(height: 10),
+                      Row(
                         children: [
-                          Text(customerName, style: mBold),
-                          const SizedBox(height: 5),
+                          SvgPicture.asset(
+                            'assets/svg/user.svg',
+                            width: 18,
+                            height: 18,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 8),
                           Text(
-                            customerPhone,
+                            'Oleh: ${_orderData['createdByName']}',
                             style: sRegular.copyWith(color: textMuted),
                           ),
                         ],
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'ID Pesanan: $orderId',
-                    style: xsRegular.copyWith(color: textMuted),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ===== STATUS =====
-            _sectionCard(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Status', style: sRegular.copyWith(color: textMuted)),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: statusBgColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      statusLabel.toUpperCase(),
-                      style: smSemiBold.copyWith(color: statusColor),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ===== PAYMENT STATUS =====
-            _sectionCard(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Pembayaran', style: sRegular.copyWith(color: textMuted)),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: paymentBgColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      paymentLabel,
-                      style: smSemiBold.copyWith(color: paymentColor, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ===== ORDER INFO =====
-            _sectionCard(
-              child: Column(
-                children: [
-                  _infoRow(
-                    icon: 'assets/svg/basket.svg',
-                    title: 'Kategori',
-                    value: categoryLabel,
-                  ),
-                  _infoRow(
-                    icon: 'assets/svg/speed.svg',
-                    title: 'Kecepatan',
-                    value: speedLabel,
-                  ),
-                  if (weight > 0)
-                    _infoRow(
-                      icon: 'assets/svg/box.svg',
-                      title: 'Berat',
-                      value: '$weight kg',
-                    ),
-                  if (items.isNotEmpty)
-                    _infoRow(
-                      icon: 'assets/svg/box.svg',
-                      title: 'Item',
-                      value: '${items.length} buah',
-                    ),
-                  if (notes.isNotEmpty)
-                    _infoRow(
-                      icon: 'assets/svg/notes.svg',
-                      title: 'Catatan',
-                      value: notes,
-                    ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ===== PRICE =====
-            _sectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Harga Total',
-                      style: sRegular.copyWith(color: textMuted)),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Rp ${_formatNumber(totalPrice)}',
-                    style: lBold.copyWith(color: Colors.blue),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // ===== CREATED TIME =====
-            _sectionCard(
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time,
-                          size: 18, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Dibuat: $dateStr',
-                        style: sRegular.copyWith(color: textMuted),
-                      ),
-                    ],
-                  ),
-                  if (_orderData['createdByName'] != null) ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        SvgPicture.asset(
-                          'assets/svg/user.svg',
-                          width: 18,
-                          height: 18,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Oleh: ${_orderData['createdByName']}',
-                          style: sRegular.copyWith(color: textMuted),
-                        ),
-                      ],
-                    ),
                   ],
-                ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 16),
-
-            // ===== Photos (Only show on COMPLETED status) =====
-            if (_currentStatus == 'completed') ...[
-              _buildPhotos(),
               const SizedBox(height: 16),
-            ],
 
-            // ===== ACTION BUTTONS =====
-            Column(
-              children: [
-                if (_currentStatus == 'pending') ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _isUpdating
-                          ? null
-                          : () => _updateOrderStatus('process'),
-                      child: Text(
-                        'Mulai Proses',
-                        style: smSemiBold.copyWith(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildWhatsAppButton(),
-                  const SizedBox(height: 12),
-                  if (_paymentStatus == 'unpaid') ...[
-                    _buildPaymentButton(),
-                    const SizedBox(height: 12),
-                  ],
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: const BorderSide(color: Colors.red),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _isUpdating ? null : _cancelOrder,
-                      child: Text(
-                        'Batalkan Pesanan',
-                        style: smSemiBold.copyWith(color: Colors.red),
-                      ),
-                    ),
-                  ),
-                ] else if (_currentStatus == 'process') ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: blue500,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _isUpdating
-                          ? null
-                          : () => _updateOrderStatus('completed'),
-                      child: Text(
-                        'Selesai',
-                        style: smSemiBold.copyWith(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildWhatsAppButton(),
-                  const SizedBox(height: 12),
-                  if (_paymentStatus == 'unpaid') ...[
-                    _buildPaymentButton(),
-                  ],
-                ] else if (_currentStatus == 'completed') ...[
-                  _buildWhatsAppButton(),
-                  const SizedBox(height: 12),
-                  if (_paymentStatus == 'unpaid') ...[
-                    _buildPaymentButton(),
-                  ],
-                ] else if (_currentStatus == 'cancelled') ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _isUpdating ? null : _deleteOrder,
-                      child: Text(
-                        'Hapus Pesanan',
-                        style: smSemiBold.copyWith(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
+              // ===== Photos (Only show on COMPLETED status) =====
+              if (_currentStatus == 'completed') ...[
+                _buildPhotos(),
+                const SizedBox(height: 16),
               ],
-            ),
-          ],
+
+              // ===== ACTION BUTTONS =====
+              Column(
+                children: [
+                  if (_currentStatus == 'pending') ...[
+                    // PENDING: Mulai Proses & Batalkan
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _isUpdating
+                            ? null
+                            : () => _updateOrderStatus('process'),
+                        child: Text(
+                          'Mulai Proses',
+                          style: smSemiBold.copyWith(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: Colors.red),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _isUpdating ? null : _cancelOrder,
+                        child: Text(
+                          'Batalkan Pesanan',
+                          style: smSemiBold.copyWith(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                  ] else if (_currentStatus == 'process') ...[
+                    // STATUS MEMPROSES: Tombol Selesai & Batalkan Pesanan
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: blue500,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _isUpdating
+                            ? null
+                            : () => _updateOrderStatus('completed'),
+                        child: Text(
+                          'Selesai',
+                          style: smSemiBold.copyWith(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ] else if (_currentStatus == 'completed') ...[
+                    // STATUS SELESAI: Tombol Lunasi Pembayaran jika belum lunas
+                    if (_paymentStatus == 'unpaid') ...[
+                      _buildPaymentButton(),
+                    ],
+                  ] else if (_currentStatus == 'cancelled') ...[
+                    // CANCELLED: Hapus Pesanan
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _isUpdating ? null : _deleteOrder,
+                        child: Text(
+                          'Hapus Pesanan',
+                          style: smSemiBold.copyWith(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -843,7 +859,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       dateStr = DateFormat('d MMM yyyy').format(createdAt.toDate());
     }
 
-    final trackingLink = 'https://laundriin.web.app/#/track?o=${_orderData['id']}&s=$_userId';
+    final trackingLink =
+        'https://laundriin.web.app/#/track?o=${_orderData['id']}&s=$_userId';
 
     // Replace variables in message
     String fillTemplate(String message) {
@@ -1240,7 +1257,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   // ===== LAUNCH WHATSAPP =====
-  Future<void> _launchWhatsApp(String phone, String message) async {
+  void _launchWhatsApp(String phone, String message) {
     // Clean phone number: remove spaces, dashes, etc.
     String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
 
@@ -1255,32 +1272,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     // Remove + prefix for wa.me
     cleanPhone = cleanPhone.replaceAll('+', '');
 
-    final encodedMessage = Uri.encodeComponent(message);
-    final url = 'https://wa.me/$cleanPhone?text=$encodedMessage';
-
-    try {
-      if (await canLaunchUrl(Uri.parse(url))) {
-        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tidak dapat membuka WhatsApp'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+    context.read<WablasCubit>().sendWhatsAppMessage(
+          phone: cleanPhone,
+          message: message,
         );
-      }
-    }
   }
 
   Color _getTemplateCategoryColor(String category) {
@@ -1953,5 +1948,91 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           RegExp(r'\B(?=(\d{3})+(?!\d))'),
           (Match m) => '.',
         );
+  }
+
+  // ===== FUNGSI OTOMATIS KIRIM NOTIFIKASI WA DARI TEMPLATE (SELESAI) =====
+  Future<void> _sendAutomatedWhatsApp(Map<String, dynamic> orderData) async {
+    if (!mounted) return;
+
+    final String phone = orderData['customerPhone'] ?? '';
+    if (phone.isEmpty) return;
+
+    final String customerName = orderData['customerName'] ?? 'Pelanggan';
+    final String orderId = orderData['orderId'] ?? '';
+    final dynamic priceData = orderData['totalPrice'] ?? 0;
+    final dynamic weightData = orderData['weight'] ?? 0;
+    final String speed = orderData['speed'] ?? '';
+    final dynamic createdAtData = orderData['createdAt'];
+    final String serviceType = orderData['serviceType'] ?? '';
+
+    String serviceLabel = serviceType == 'washComplete'
+        ? 'Cuci Komplit'
+        : serviceType == 'ironing'
+            ? 'Setrika'
+            : serviceType == 'dryWash'
+                ? 'Cuci Kering'
+                : serviceType == 'steamIroning'
+                    ? 'Setrika Uap'
+                    : 'Laundry';
+
+    String dateStr = '';
+    if (createdAtData is Timestamp) {
+      dateStr = DateFormat('d MMM yyyy').format(createdAtData.toDate());
+    } else {
+      dateStr = DateFormat('d MMM yyyy').format(DateTime.now());
+    }
+
+    final formatter = NumberFormat('#,###', 'id_ID');
+    final trackingLink =
+        'https://laundriin.web.app/#/track?o=${orderData['id']}&s=$_userId';
+
+    try {
+      // 1. Ambil template "Selesai" (Template Manual yg diotomatiskan)
+      final snapshot = await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('whatsappTemplates')
+          .where('category', isEqualTo: 'Selesai')
+          .get();
+
+      if (!mounted) return;
+
+      if (snapshot.docs.isNotEmpty) {
+        final templateData = snapshot.docs.first.data();
+        String message = templateData['message'] ?? '';
+
+        // 2. Replace variabel-variabel
+        message = message
+            .replaceAll('{nama}', customerName)
+            .replaceAll('{orderId}', orderId)
+            .replaceAll('{harga}', formatter.format(priceData))
+            .replaceAll(
+                '{estimasi}', speed == 'express' ? '1 hari' : '2-3 hari')
+            .replaceAll('{tanggal}', dateStr)
+            .replaceAll('{phone}', phone)
+            .replaceAll('{layanan}', serviceLabel)
+            .replaceAll('{berat}', '$weightData kg')
+            .replaceAll('{link}', trackingLink);
+
+        // Clean phone number
+        String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+        if (cleanPhone.startsWith('0')) {
+          cleanPhone = '62${cleanPhone.substring(1)}';
+        }
+        if (!cleanPhone.startsWith('+') && !cleanPhone.startsWith('62')) {
+          cleanPhone = '62$cleanPhone';
+        }
+        cleanPhone = cleanPhone.replaceAll('+', '');
+
+        // 3. Kirim via Wablas
+        print('[WABLAS] Automating Selesai message to $cleanPhone');
+        context.read<WablasCubit>().sendWhatsAppMessage(
+              phone: cleanPhone,
+              message: message,
+            );
+      }
+    } catch (e) {
+      print('[WABLAS] Error in automated message: $e');
+    }
   }
 }

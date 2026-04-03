@@ -3,8 +3,8 @@ const String sandboxPackageName = "com.example.learning_japanese";
 const String appId = "6740189117";
 
 /// Network Config
-const String baseUrlProduction = "https://antifake.id";
-const String baseUrlSandbox = "https://antifake.id";
+const String baseUrlProduction = "https://laundriin.online";
+const String baseUrlSandbox = "https://laundriin.online";
 const String baseSocketProduction = 'https://socket.pcctabessmg.xyz';
 const String baseSocketSandbox = 'https://socket.pcctabessmg.xyz';
 const String baseUrl = isProduction ? baseUrlProduction : baseUrlSandbox;

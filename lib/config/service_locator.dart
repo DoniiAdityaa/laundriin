@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:laundriin/config/user_preference.dart';
 import 'package:laundriin/data/socket/socket_service.dart';
+import 'package:laundriin/features/orders/cubit/wablas_cubit.dart';
 
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -46,6 +47,12 @@ Future<void> setUpLocator() async {
     () => ApiService(
       serviceLocator.get<Dio>(),
       baseUrl: baseApi,
+    ),
+  );
+
+  serviceLocator.registerFactory<WablasCubit>(
+    () => WablasCubit(
+      apiService: serviceLocator.get<ApiService>(),
     ),
   );
 

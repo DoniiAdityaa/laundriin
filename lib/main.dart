@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:laundriin/config/service_locator.dart';
+import 'package:laundriin/features/orders/cubit/wablas_cubit.dart';
 import 'package:laundriin/ui/theme.dart';
 import 'firebase_options.dart';
 import 'package:laundriin/features/auth/login_screen.dart';
@@ -18,6 +21,7 @@ import 'package:laundriin/features/tracking/tracking_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await setUpLocator();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -64,47 +68,50 @@ class _MyAppState extends State<MyApp> {
       onTap: () {
         FocusManager.instance.primaryFocus?.unfocus();
       },
-      child: MaterialApp(
-        scaffoldMessengerKey: SnackbarHelper.key,
-        builder: (context, child) {
-          return NetworkBanner(child: child!);
-        },
-        debugShowCheckedModeBanner: false,
-        title: 'Laundriin',
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('id', 'ID'),
-          Locale('en', 'US'),
-        ],
-        theme: AppTheme.light,
-        onGenerateRoute: (settings) {
-          final uri = Uri.parse(settings.name ?? '/');
+      child: BlocProvider<WablasCubit>(
+        create: (context) => serviceLocator.get<WablasCubit>(),
+        child: MaterialApp(
+          scaffoldMessengerKey: SnackbarHelper.key,
+          builder: (context, child) {
+            return NetworkBanner(child: child!);
+          },
+          debugShowCheckedModeBanner: false,
+          title: 'Laundriin',
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('id', 'ID'),
+            Locale('en', 'US'),
+          ],
+          theme: AppTheme.light,
+          onGenerateRoute: (settings) {
+            final uri = Uri.parse(settings.name ?? '/');
 
-          if (uri.path.startsWith('/track')) {
-            final orderId = uri.queryParameters['o'];
-            final shopId = uri.queryParameters['s'];
+            if (uri.path.startsWith('/track')) {
+              final orderId = uri.queryParameters['o'];
+              final shopId = uri.queryParameters['s'];
 
-            return MaterialPageRoute(
-              builder: (context) => TrackingScreen(
-                initialOrderId: orderId,
-                initialShopId: shopId,
-              ),
-            );
-          }
+              return MaterialPageRoute(
+                builder: (context) => TrackingScreen(
+                  initialOrderId: orderId,
+                  initialShopId: shopId,
+                ),
+              );
+            }
 
-          if (uri.path == '/login') {
-            return MaterialPageRoute(
-              builder: (context) => _initialScreen(),
-            );
-          }
+            if (uri.path == '/login') {
+              return MaterialPageRoute(
+                builder: (context) => _initialScreen(),
+              );
+            }
 
-          return null; // Fallback to 'home'
-        },
-        home: kIsWeb ? const TrackingScreen() : _initialScreen(),
+            return null; // Fallback to 'home'
+          },
+          home: kIsWeb ? const TrackingScreen() : _initialScreen(),
+        ),
       ),
     );
   }

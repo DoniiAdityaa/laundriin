@@ -8,6 +8,9 @@ import 'package:laundriin/utility/app_dialogs.dart';
 import 'package:laundriin/utility/app_loading_overlay.dart';
 import 'package:laundriin/utility/receipt_screen.dart';
 import 'package:laundriin/config/shop_config.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:laundriin/features/orders/cubit/wablas_cubit.dart';
+import 'package:intl/intl.dart';
 
 class AddOrderScreen extends StatefulWidget {
   const AddOrderScreen({super.key});
@@ -565,6 +568,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
       print('[SUCCESS] ✅ Pesanan berhasil disimpan ke database!');
       print('═══════════════════════════════════════════════════════════');
+
+      // Panggil fungsi pengiriman WhatsApp otomatis
+      _sendAutomatedWhatsApp(orderData);
 
       // Order berhasil, reset pending state
       _pendingOrderId = null;
@@ -2886,5 +2892,98 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           RegExp(r'\B(?=(\d{3})+(?!\d))'),
           (Match m) => '.',
         );
+  }
+
+  // ===== FUNGSI OTOMATIS KIRIM NOTIFIKASI WA DARI TEMPLATE =====
+  Future<void> _sendAutomatedWhatsApp(Map<String, dynamic> orderData) async {
+    if (!mounted) return;
+
+    final String phone = orderData['customerPhone'] ?? '';
+    if (phone.isEmpty) return;
+
+    final String customerName = orderData['customerName'] ?? 'Pelanggan';
+    final String orderId = orderData['orderId'] ?? '';
+    final dynamic priceData = orderData['totalPrice'] ?? 0;
+    final dynamic weightData = orderData['weight'] ?? 0;
+    final String speed = orderData['speed'] ?? '';
+    final dynamic createdAtData = orderData['createdAt'];
+    final String serviceType = orderData['serviceType'] ?? '';
+
+    String serviceLabel = serviceType == 'washComplete'
+        ? 'Cuci Komplit'
+        : serviceType == 'ironing'
+            ? 'Setrika'
+            : serviceType == 'dryWash'
+                ? 'Cuci Kering'
+                : serviceType == 'steamIroning'
+                    ? 'Setrika Uap'
+                    : 'Laundry';
+
+    String dateStr = '';
+    if (createdAtData is Timestamp) {
+      dateStr = DateFormat('d MMM yyyy').format(createdAtData.toDate());
+    } else {
+      // Jika berisi FieldValue, gunakan tanggal sekarang
+      dateStr = DateFormat('d MMM yyyy').format(DateTime.now());
+    }
+
+    final formatter = NumberFormat('#,###', 'id_ID');
+    final trackingLink =
+        'https://laundriin.web.app/#/track?o=${orderData['orderId']}&s=$_userId';
+
+    try {
+      // 1. Ambil template "Menunggu" dari Firestore
+      final snapshot = await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('whatsappTemplates')
+          .where('category', isEqualTo: 'Menunggu')
+          .get();
+
+      if (!mounted) return;
+
+      if (snapshot.docs.isNotEmpty) {
+        // 2. Jika ada, ambil template pertama
+        final templateData = snapshot.docs.first.data();
+        String message = templateData['message'] ?? '';
+
+        // 3. Replace variabel-variabel di dalam template
+        message = message
+            .replaceAll('{nama}', customerName)
+            .replaceAll('{orderId}', orderId)
+            .replaceAll('{harga}', formatter.format(priceData))
+            .replaceAll(
+                '{estimasi}', speed == 'express' ? '1 hari' : '2-3 hari')
+            .replaceAll('{tanggal}', dateStr)
+            .replaceAll('{phone}', phone)
+            .replaceAll('{layanan}', serviceLabel)
+            .replaceAll('{berat}', '$weightData kg')
+            .replaceAll('{link}', trackingLink);
+
+        // Clean phone number (Ubah 08 jadi 628)
+        String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+        if (cleanPhone.startsWith('0')) {
+          cleanPhone = '62${cleanPhone.substring(1)}';
+        }
+        if (!cleanPhone.startsWith('+') && !cleanPhone.startsWith('62')) {
+          cleanPhone = '62$cleanPhone';
+        }
+        cleanPhone = cleanPhone.replaceAll('+', '');
+
+        // 4. Kirim menggunakan Wablas API
+        print(
+            '[WABLAS] Mengirim template Menunggu ke $cleanPhone otomatis pada saat Add Order...');
+        context.read<WablasCubit>().sendWhatsAppMessage(
+              phone: cleanPhone,
+              message: message,
+            );
+      } else {
+        print(
+            '[WABLAS] Template "Menunggu" tidak ditemukan di Firestore, pesan otomatis dibatalkan.');
+      }
+    } catch (e) {
+      print(
+          '[WABLAS] Gagal mengambil template atau mengirim pesan otomatis: $e');
+    }
   }
 }

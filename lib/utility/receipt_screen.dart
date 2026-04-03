@@ -4,8 +4,12 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
+import 'package:laundriin/features/orders/cubit/wablas_cubit.dart';
+import 'package:laundriin/features/orders/cubit/wablas_state.dart';
+import 'package:laundriin/utility/snackbar_helper.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:share_plus/share_plus.dart';
@@ -164,49 +168,62 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   // ===== Receipt Container (Printable Area) =====
   Widget _buildReceiptContainer() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // ===== STORE HEADER =====
-          _buildStoreHeader(),
-          const SizedBox(height: 4),
-          _buildDottedDivider(),
-          const SizedBox(height: 16),
+    return BlocListener<WablasCubit, WablasState>(
+      listener: (context, state) {
+        if (state is WablasLoading) {
+          AppLoading.show(context);
+        } else if (state is WablasSuccess) {
+          AppLoading.hide(context);
+          SnackbarHelper.showSuccess(state.message);
+        } else if (state is WablasFailure) {
+          AppLoading.hide(context);
+          SnackbarHelper.showError(state.error);
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // ===== STORE HEADER =====
+            _buildStoreHeader(),
+            const SizedBox(height: 4),
+            _buildDottedDivider(),
+            const SizedBox(height: 16),
 
-          // ===== ORDER INFO =====
-          _buildOrderInfo(),
-          const SizedBox(height: 4),
-          _buildDottedDivider(),
-          const SizedBox(height: 16),
+            // ===== ORDER INFO =====
+            _buildOrderInfo(),
+            const SizedBox(height: 4),
+            _buildDottedDivider(),
+            const SizedBox(height: 16),
 
-          // ===== ITEMS DETAIL =====
-          _buildItemsDetail(),
-          const SizedBox(height: 4),
-          _buildDottedDivider(),
-          const SizedBox(height: 16),
+            // ===== ITEMS DETAIL =====
+            _buildItemsDetail(),
+            const SizedBox(height: 4),
+            _buildDottedDivider(),
+            const SizedBox(height: 16),
 
-          // ===== PRICING SUMMARY =====
-          _buildPricingSummary(),
-          const SizedBox(height: 16),
-          _buildDottedDivider(),
-          const SizedBox(height: 16),
+            // ===== PRICING SUMMARY =====
+            _buildPricingSummary(),
+            const SizedBox(height: 16),
+            _buildDottedDivider(),
+            const SizedBox(height: 16),
 
-          // ===== THANK YOU =====
-          _buildThankYouSection(),
-        ],
+            // ===== THANK YOU =====
+            _buildThankYouSection(),
+          ],
+        ),
       ),
     );
   }
@@ -574,34 +591,28 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   // ===== SHARE TO WHATSAPP (TEXT ONLY, DIRECT TO CONTACT) =====
   Future<void> _handleWhatsAppDirect() async {
-    if (_isSharing) return;
-    setState(() => _isSharing = true);
+    final messageText =
+        'Halo ${widget.customerName}, berikut struk pesanan Anda:\n\n'
+        '🧾 *STRUK PEMESANAN*\n'
+        '━━━━━━━━━━━━━━━\n'
+        '📋 Order ID: ${widget.orderId}\n'
+        '👤 Pelanggan: ${widget.customerName}\n'
+        '📅 Tanggal: ${_formatDate(widget.orderDate)}\n'
+        '🧺 Layanan: ${_getServiceDisplay()}\n'
+        '⚡ Kecepatan: ${_getSpeedDisplay()}\n'
+        '━━━━━━━━━━━━━━━\n'
+        '💰 *Total: Rp ${_formatNumber(widget.totalPrice)}*\n'
+        '━━━━━━━━━━━━━━━\n\n'
+        'Terima kasih! 🙏';
 
-    try {
-      final file = await _captureReceipt();
-      if (file == null) {
-        if (mounted) setState(() => _isSharing = false);
-        return;
-      }
-      // 2. Compose message text
-      final message =
-          'Halo ${widget.customerName}, berikut struk pesanan Anda:\n\n'
-          '🧾 *STRUK PEMESANAN*\n'
-          '━━━━━━━━━━━━━━━\n'
-          '📋 Order ID: ${widget.orderId}\n'
-          '👤 Pelanggan: ${widget.customerName}\n'
-          '📅 Tanggal: ${_formatDate(widget.orderDate)}\n'
-          '🧺 Layanan: ${_getServiceDisplay()}\n'
-          '⚡ Kecepatan: ${_getSpeedDisplay()}\n'
-          '━━━━━━━━━━━━━━━\n'
-          '💰 *Total: Rp ${_formatNumber(widget.totalPrice)}*\n'
-          '━━━━━━━━━━━━━━━\n\n'
-          'Terima kasih! 🙏';
-
-      await Share.shareXFiles([XFile(file.path)], text: message);
-    } finally {
-      if (mounted) setState(() => _isSharing = false);
+    String phoneNumber = widget.customerPhone;
+    if (phoneNumber.startsWith('0')) {
+      phoneNumber = '62${phoneNumber.substring(1)}';
     }
+
+    context
+        .read<WablasCubit>()
+        .sendWhatsAppMessage(phone: phoneNumber, message: messageText);
   }
 
   String _formatDate(DateTime date) {
