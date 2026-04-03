@@ -31,6 +31,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   final Map<String, bool> _isUploading = {}; // Track upload state per photo
 
   late String _currentStatus;
+  late String _paymentStatus;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String get _userId => ShopSettings.shopOwnerId;
@@ -42,6 +43,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     super.initState();
     _orderData = widget.orderData;
     _currentStatus = _orderData['status'] ?? 'pending';
+    _paymentStatus = _orderData['paymentStatus'] ?? 'unpaid';
 
     // ===== LOAD PHOTOS FROM FIRESTORE =====
     _loadPhotosFromFirestore();
@@ -93,6 +95,49 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Status pesanan diperbarui ke $newStatus'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppLoading.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Kesalahan: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _updatePaymentStatus(String newStatus) async {
+    if (_isUpdating) return;
+
+    setState(() => _isUpdating = true);
+    AppLoading.show(context, message: 'Memperbarui status pembayaran...');
+
+    try {
+      await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('orders')
+          .doc(_orderData['id'])
+          .update({'paymentStatus': newStatus});
+
+      setState(() {
+        _paymentStatus = newStatus;
+        _orderData['paymentStatus'] = newStatus;
+      });
+
+      if (mounted) {
+        AppLoading.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Status pembayaran diperbarui'),
             backgroundColor: Colors.green,
           ),
         );
@@ -388,6 +433,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       statusBgColor = Colors.red.withOpacity(0.1);
     }
 
+    String paymentLabel = _paymentStatus == 'paid' ? 'LUNAS' : 'BELUM LUNAS';
+    Color paymentColor = _paymentStatus == 'paid' ? Colors.green[700]! : Colors.red[700]!;
+    Color paymentBgColor = _paymentStatus == 'paid' ? Colors.green[50]! : Colors.red[50]!;
+
     return Scaffold(
       backgroundColor: bgApp,
       appBar: AppBar(
@@ -484,6 +533,30 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     child: Text(
                       statusLabel.toUpperCase(),
                       style: smSemiBold.copyWith(color: statusColor),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ===== PAYMENT STATUS =====
+            _sectionCard(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Pembayaran', style: sRegular.copyWith(color: textMuted)),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: paymentBgColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      paymentLabel,
+                      style: smSemiBold.copyWith(color: paymentColor, fontWeight: FontWeight.w800),
                     ),
                   ),
                 ],
@@ -619,6 +692,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   const SizedBox(height: 12),
                   _buildWhatsAppButton(),
                   const SizedBox(height: 12),
+                  if (_paymentStatus == 'unpaid') ...[
+                    _buildPaymentButton(),
+                    const SizedBox(height: 12),
+                  ],
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
@@ -658,8 +735,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   _buildWhatsAppButton(),
+                  const SizedBox(height: 12),
+                  if (_paymentStatus == 'unpaid') ...[
+                    _buildPaymentButton(),
+                  ],
                 ] else if (_currentStatus == 'completed') ...[
                   _buildWhatsAppButton(),
+                  const SizedBox(height: 12),
+                  if (_paymentStatus == 'unpaid') ...[
+                    _buildPaymentButton(),
+                  ],
                 ] else if (_currentStatus == 'cancelled') ...[
                   SizedBox(
                     width: double.infinity,
@@ -682,6 +767,27 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ===== PAYMENT BUTTON =====
+  Widget _buildPaymentButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange[700],
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: _isUpdating ? null : () => _updatePaymentStatus('paid'),
+        child: Text(
+          'Lunasi Pembayaran',
+          style: smSemiBold.copyWith(color: Colors.white),
         ),
       ),
     );

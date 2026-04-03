@@ -55,6 +55,12 @@ class OrderCard extends StatelessWidget {
     String speedLabel =
         speed.isNotEmpty ? speed[0].toUpperCase() + speed.substring(1) : '-';
 
+    // Pembayaran
+    final paymentStatus = order['paymentStatus'] ?? 'unpaid';
+    String paymentLabel = paymentStatus == 'paid' ? 'LUNAS' : 'BLM LUNAS';
+    Color paymentColor = paymentStatus == 'paid' ? Colors.green[700]! : Colors.red[700]!;
+    Color paymentBgColor = paymentStatus == 'paid' ? Colors.green[50]! : Colors.red[50]!;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -155,6 +161,24 @@ class OrderCard extends StatelessWidget {
                           ? Colors.red[700]
                           : Colors.green[700],
                       fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: paymentBgColor,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    paymentLabel,
+                    style: xsRegular.copyWith(
+                      color: paymentColor,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),

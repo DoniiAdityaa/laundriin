@@ -41,6 +41,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   final _weightC = TextEditingController(); // For Kiloan/Campuran
   final _qtyC = TextEditingController(); // For Satuan/Campuran
   final _notesC = TextEditingController(); // Special notes
+  String _paymentStatus = 'unpaid'; // Payment status (unpaid/paid)
 
   // Pricing from database
   int _pricePerKilo = 0;
@@ -519,6 +520,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
             : null,
         'items': itemsData.isEmpty ? null : itemsData,
         'totalPrice': _calculateTotalPrice(),
+        'paymentStatus': _paymentStatus,
         'notes': _notesC.text.trim().isEmpty ? null : _notesC.text.trim(),
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
@@ -2318,7 +2320,113 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           ),
           const SizedBox(height: 20),
 
-          // ===== SECTION 3: Notes (Only if not empty) =====
+          // ===== SECTION 3: Payment Status =====
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.blue[200]!, width: 1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.payments_outlined,
+                          color: Colors.green[600],
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Status Pembayaran',
+                      style: mBold.copyWith(color: textPrimary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Divider(color: borderLight, height: 1),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _paymentStatus = 'unpaid'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _paymentStatus == 'unpaid'
+                                ? Colors.red[50]
+                                : bgInput,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _paymentStatus == 'unpaid'
+                                  ? Colors.red[300]!
+                                  : borderLight,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Belum Lunas',
+                              style: smBold.copyWith(
+                                color: _paymentStatus == 'unpaid'
+                                    ? Colors.red[700]
+                                    : textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _paymentStatus = 'paid'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _paymentStatus == 'paid'
+                                ? Colors.green[50]
+                                : bgInput,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _paymentStatus == 'paid'
+                                  ? Colors.green[300]!
+                                  : borderLight,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Sudah Lunas',
+                              style: smBold.copyWith(
+                                color: _paymentStatus == 'paid'
+                                    ? Colors.green[700]
+                                    : textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ===== SECTION 4: Notes (Only if not empty) =====
           if (_notesC.text.trim().isNotEmpty)
             Container(
               decoration: BoxDecoration(
