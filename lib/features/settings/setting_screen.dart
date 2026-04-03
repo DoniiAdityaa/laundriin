@@ -530,8 +530,8 @@ class _SettingScreenState extends State<SettingScreen> {
 
       _buildMenuCard(
         icon: Icons.chat_bubble_outline_outlined,
-        title: "Template Whatsapp",
-        subtitle: "kelola pesan tempplate notifikasi",
+        title: "Pesan Otomatis",
+        subtitle: "kelola pesan tempplate notifikasi otomatis WhatsApp",
         iconBgColor: blue100,
         iconColor: blue500,
         onTap: () {

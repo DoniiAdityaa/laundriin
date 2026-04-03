@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:laundriin/config/shop_config.dart';
@@ -15,14 +15,17 @@ class TemplateWhatsaapScreen extends StatefulWidget {
 }
 
 class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
-  // Kategori filter
-  String _selectedCategory = 'Semua';
+  // Kategori internal (Firestore)
   final List<String> _categories = [
-    'Semua',
     'Menunggu',
-    'Proses',
     'Selesai',
   ];
+
+  // Mapping Label UI
+  final Map<String, String> _categoryLabels = {
+    'Menunggu': 'Order Masuk',
+    'Selesai': 'Order Selesai',
+  };
 
   // Template data dari Firebase
   List<Map<String, dynamic>> _templates = [];
@@ -36,7 +39,6 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
   void initState() {
     super.initState();
     _setupTemplateListener();
-    _loadTemplates();
   }
 
   @override
@@ -45,30 +47,7 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
     super.dispose();
   }
 
-  Future<void> _loadTemplates() async {
-    try {
-      final doc = await _firestore.collection('shops').doc(_userId).get();
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!['whatsappTemplates'] ?? {};
-        setState(() {
-          _templates = data.entries.map((entry) {
-            final template = entry.value;
-            return {
-              'id': entry.key,
-              'title': template['title'] ?? '',
-              'category': template['category'] ?? 'Proses',
-              'message': template['message'] ?? '',
-              'isActive': template['isActive'] ?? true,
-            };
-          }).toList();
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('[TEMPLATE] Error: $e');
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
+  // _loadTemplates was redundant
 
   void _setupTemplateListener() {
     _templateSubscription = _firestore
@@ -77,8 +56,13 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
         .collection('whatsappTemplates')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .listen((snapshot) {
-      if (mounted) {
+        .listen((snapshot) async {
+      if (!mounted) return;
+
+      if (snapshot.docs.isEmpty) {
+        // Inisialisasi template default jika kosong
+        await _initializeDefaultTemplates();
+      } else {
         setState(() {
           _templates = snapshot.docs.map((doc) {
             final data = doc.data();
@@ -99,6 +83,35 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
     });
   }
 
+  Future<void> _initializeDefaultTemplates() async {
+    final List<Map<String, dynamic>> defaultTemplates = [
+      {
+        'category': 'Menunggu',
+        'title': 'Order Masuk',
+        'message':
+            'Halo {nama}, pesanan laundry Anda dengan ID {orderId} sudah kami terima. Total biaya: Rp {harga}. Estimasi selesai: {estimasi}. Terima kasih!',
+        'isActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'category': 'Selesai',
+        'title': 'Order Selesai',
+        'message':
+            'Halo {nama}, kabar gembira! Pesanan laundry Anda dengan ID {orderId} sudah selesai dan siap diambil. Silakan datang ke outlet kami. Terima kasih!',
+        'isActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      }
+    ];
+
+    for (var t in defaultTemplates) {
+      await _firestore
+          .collection('shops')
+          .doc(_userId)
+          .collection('whatsappTemplates')
+          .add(t);
+    }
+  }
+
   // Variabel yang bisa digunakan
   final List<Map<String, String>> _variables = [
     {'key': '{nama}', 'label': 'Nama'},
@@ -112,9 +125,14 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
     {'key': '{link}', 'label': 'Link Lacak'},
   ];
 
-  List<Map<String, dynamic>> get _filteredTemplates {
-    if (_selectedCategory == 'Semua') return _templates;
-    return _templates.where((t) => t['category'] == _selectedCategory).toList();
+  List<Map<String, dynamic>> get _fixedTemplates {
+    // Pastikan urutan selalu Order Masuk lalu Order Selesai
+    final orderMasuk =
+        _templates.where((t) => t['category'] == 'Menunggu').toList();
+    final orderSelesai =
+        _templates.where((t) => t['category'] == 'Selesai').toList();
+
+    return [...orderMasuk, ...orderSelesai];
   }
 
   @override
@@ -131,53 +149,18 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
           const SizedBox(height: 20),
 
           if (_isLoading)
-            const Center(child: CircularProgressIndicator())
+            const Expanded(child: Center(child: CircularProgressIndicator()))
           else ...[
-            // ===== CATEGORY FILTER =====
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    )
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Row(
-                    children: [
-                      _buildTab("Semua", 0),
-                      const SizedBox(width: 6),
-                      _buildTab("Menunggu", 1),
-                      const SizedBox(width: 6),
-                      _buildTab("Proses", 2),
-                      const SizedBox(width: 6),
-                      _buildTab("Selesai", 3),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
             // ===== TEMPLATE LIST =====
             Expanded(
-              child: _filteredTemplates.isEmpty
+              child: _fixedTemplates.isEmpty
                   ? _buildEmptyState()
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      itemCount: _filteredTemplates.length,
+                      itemCount: _fixedTemplates.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
-                        final template = _filteredTemplates[index];
+                        final template = _fixedTemplates[index];
                         return _buildTemplateCard(template);
                       },
                     ),
@@ -186,14 +169,7 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
         ]),
       ),
 
-      // ===== FAB: ADD TEMPLATE =====
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showEditTemplateSheet(),
-        backgroundColor: blue500,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-        child: const Icon(Icons.add_rounded, size: 20, color: white),
-      ),
+      // Hapus FAB karena slot sudah tetap
     );
   }
 
@@ -221,10 +197,10 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Template WhatsApp', style: mBold),
+                Text('Pesan Otomatis', style: mBold),
                 const SizedBox(height: 4),
                 Text(
-                  'Kelola pesan template notifikasi',
+                  'Kelola pesan notifikasi otomatis WhatsApp',
                   style: sRegular.copyWith(color: gray500),
                 ),
               ],
@@ -235,73 +211,7 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
     );
   }
 
-  // ===== BUILD TAB =====
-  Widget _buildTab(String title, int index) {
-    final String categoryValue = _categories[index];
-    final bool isActive = _selectedCategory == categoryValue;
-
-    Color activeColor = blue600;
-    Color inactiveText = Colors.grey.shade600;
-
-    // Icon & warna per tab (hanya untuk non-Semua)
-    String? tabIcon;
-    Color iconColor = gray400;
-    Color iconBgColor = gray100;
-
-    if (index != 0) {
-      tabIcon = _getCategoryIcon(categoryValue);
-      iconColor = _getCategoryColor(categoryValue);
-      iconBgColor = _getCategoryBgColor(categoryValue);
-    }
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedCategory = categoryValue;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: isActive ? blue50 : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isActive ? gray300 : Colors.transparent,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (tabIcon != null) ...[
-              Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: iconBgColor,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Center(
-                  child: SvgPicture.asset(
-                    tabIcon,
-                    width: 13,
-                    color: iconColor,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              title,
-              style: smSemiBold.copyWith(
-                color: isActive ? activeColor : inactiveText,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // _buildTab dihapus karena kategori tidak lagi difilter
 
   // ===== TEMPLATE CARD =====
   Widget _buildTemplateCard(Map<String, dynamic> template) {
@@ -354,26 +264,16 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        template['title'] as String,
+                        _categoryLabels[category] ?? category,
                         style: smBold.copyWith(
                           color: textPrimary,
                           fontSize: 14,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: _getCategoryColor(category).withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: Text(
-                          category,
-                          style: xsSemiBold.copyWith(
-                            color: _getCategoryColor(category),
-                          ),
-                        ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Dikirim otomatis saat status "${category == 'Menunggu' ? 'Pesanan Masuk' : 'Pesanan Selesai'}"',
+                        style: xsRegular.copyWith(color: gray500),
                       ),
                     ],
                   ),
@@ -439,39 +339,9 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
             child: Row(
               children: [
                 _buildActionChip(
-                  icon: 'assets/svg/view.svg',
-                  label: 'Preview',
-                  onTap: () => _showPreviewSheet(template),
-                ),
-                const SizedBox(width: 8),
-                _buildActionChip(
                   icon: 'assets/svg/compose.svg',
-                  label: 'Edit',
+                  label: 'Edit Pesan',
                   onTap: () => _showEditTemplateSheet(template: template),
-                ),
-                const SizedBox(width: 8),
-                // _buildActionChip(
-                //   icon: Icons.copy_outlined,
-                //   label: 'Salin',
-                //   onTap: () {
-                //     Clipboard.setData(ClipboardData(text: message));
-                //     ScaffoldMessenger.of(context).showSnackBar(
-                //       SnackBar(
-                //         content: const Text('Template berhasil disalin'),
-                //         backgroundColor: const Color(0xFF25D366),
-                //         behavior: SnackBarBehavior.floating,
-                //         shape: RoundedRectangleBorder(
-                //             borderRadius: BorderRadius.circular(10)),
-                //       ),
-                //     );
-                //   },
-                // ),
-
-                _buildActionChip(
-                  icon: 'assets/svg/delete.svg',
-                  label: 'Hapus',
-                  iconColor: const Color(0xFFEF4444),
-                  onTap: () => _showDeleteDialog(template),
                 ),
               ],
             ),
@@ -567,232 +437,128 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
 
     // Replace variables with dummy data for preview
     String previewMessage = message
-        .replaceAll('{nama}', 'Budi Santoso')
-        .replaceAll('{orderId}', 'ORD-240101')
-        .replaceAll('{harga}', '85.000')
+        .replaceAll('{nama}', 'Andi Pratama')
+        .replaceAll('{orderId}', 'ORD-12345')
+        .replaceAll('{harga}', '45.000')
         .replaceAll('{estimasi}', '2 hari')
-        .replaceAll('{tanggal}', '25 Feb 2026')
-        .replaceAll('{phone}', '0812-3456-7890')
-        .replaceAll('{layanan}', 'Cuci + Setrika')
-        .replaceAll('{berat}', '3.5 kg')
-        .replaceAll('{link}', 'https://laundriin.web.app/#/track?o=ORD-240101&s=...ID_Toko...');
+        .replaceAll('{tanggal}', '03 Apr 2024')
+        .replaceAll('{phone}', '081234567890')
+        .replaceAll('{layanan}', 'Cuci Lipat Reguler')
+        .replaceAll('{berat}', '5 kg')
+        .replaceAll('{link}', 'laundriin.com/track/ORD-12345');
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(ctx).size.height * 0.75,
-        ),
+        height: MediaQuery.of(ctx).size.height * 0.8,
         decoration: const BoxDecoration(
           color: white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: gray300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Title
+            // Header
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: blue50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: SvgPicture.asset(
-                        'assets/svg/view.svg',
-                        width: 16,
-                        color: blue500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text('Preview Pesan', style: mBold),
-                  const Spacer(),
+                  Text('Pratinjau Pesan', style: mBold),
                   GestureDetector(
                     onTap: () => Navigator.pop(ctx),
                     child: Container(
-                      width: 32,
-                      height: 32,
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: gray100,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child:
-                          Icon(Icons.close_rounded, size: 18, color: gray500),
+                      child: const Icon(Icons.close_rounded,
+                          size: 20, color: gray500),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
 
-            Divider(height: 1, color: gray200),
-            const SizedBox(height: 16),
-
-            // WhatsApp Chat Bubble
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            // WhatsApp Simulation Area
+            Expanded(
+              child: Container(
+                color: const Color(0xFFEFEAE2), // WhatsApp background color
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    // Chat header
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: blue50,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF25D366),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: const Icon(Icons.store_rounded,
-                                color: white, size: 18),
-                          ),
-                          const SizedBox(width: 10),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Toko Laundry Anda',
-                                style: smBold.copyWith(
-                                    fontSize: 13, color: textPrimary),
-                              ),
-                              Text(
-                                'Online',
-                                style: xsRegular.copyWith(
-                                  color: const Color(0xFF25D366),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                    // Chat header info (optional but nice)
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD4EAF4),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Pesan dikirim dari Toko Laundry',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.blueGrey[800]),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // Chat bubble (WhatsApp green style)
+                    // WhatsApp Bubble
                     Align(
                       alignment: Alignment.centerRight,
                       child: Container(
                         constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(ctx).size.width * 0.78,
+                          maxWidth: MediaQuery.of(ctx).size.width * 0.8,
                         ),
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFDCF8C6),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(14),
-                            topRight: Radius.circular(4),
-                            bottomLeft: Radius.circular(14),
-                            bottomRight: Radius.circular(14),
+                          color: const Color(0xFF25D366).withOpacity(0.15),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            topRight: Radius.circular(12),
+                            bottomLeft: Radius.circular(12),
+                            bottomRight: Radius.circular(0),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
                         ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               previewMessage,
-                              style: sRegular.copyWith(
-                                color: const Color(0xFF1B1B1B),
-                                height: 1.45,
-                              ),
+                              style: const TextStyle(
+                                  fontSize: 14, color: Colors.black87),
                             ),
                             const SizedBox(height: 4),
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  '12:00',
+                                  '12:45',
                                   style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey[600],
-                                  ),
+                                      fontSize: 10, color: Colors.grey[600]),
                                 ),
-                                const SizedBox(width: 4),
-                                Icon(Icons.done_all_rounded,
-                                    size: 14, color: const Color(0xFF53BDEB)),
                               ],
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-
-                    // Info keterangan
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: blue50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: blue100),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.info_outline_rounded,
-                              size: 16, color: blue500),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Variabel seperti {nama}, {orderId}, dll akan otomatis diganti dengan data pelanggan saat dikirim.',
-                              style: xsRegular.copyWith(
-                                color: blue600,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
 
-            // Bottom action
+            // Action Button
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               child: SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
@@ -806,8 +572,8 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
                     ),
                   ),
                   child: Text(
-                    'Edit Template',
-                    style: smBold.copyWith(color: white, fontSize: 14),
+                    'Edit Pesan Ini',
+                    style: mBold.copyWith(color: white),
                   ),
                 ),
               ),
@@ -882,107 +648,29 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Judul Template
-                        Text('Judul Template',
+                        // Category Label (non-editable as it is a slot)
+                        Text('Jenis Notifikasi',
                             style: smBold.copyWith(
                                 color: textPrimary, fontSize: 13)),
                         const SizedBox(height: 8),
-                        TextField(
-                          controller: titleC,
-                          decoration: InputDecoration(
-                            hintText: 'Contoh: Konfirmasi Pesanan',
-                            hintStyle:
-                                sRegular.copyWith(color: Colors.grey[400]),
-                            filled: true,
-                            fillColor: Colors.grey[50],
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: gray200),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: gray200),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: blue500),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: gray50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: gray200),
+                          ),
+                          child: Text(
+                            _categoryLabels[selectedCategory] ??
+                                selectedCategory,
+                            style: smMedium.copyWith(color: textPrimary),
                           ),
                         ),
                         const SizedBox(height: 18),
 
-                        // Kategori
-                        Text('Kategori',
-                            style: smBold.copyWith(
-                                color: textPrimary, fontSize: 13)),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children:
-                              _categories.where((c) => c != 'Semua').map((cat) {
-                            final isSelected = selectedCategory == cat;
-                            return GestureDetector(
-                              onTap: () {
-                                setModalState(() => selectedCategory = cat);
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? _getCategoryColor(cat).withOpacity(0.12)
-                                      : gray50,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? _getCategoryColor(cat)
-                                        : gray200,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 20,
-                                      height: 20,
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? _getCategoryColor(cat)
-                                                .withOpacity(0.15)
-                                            : gray100,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Center(
-                                        child: SvgPicture.asset(
-                                          _getCategoryIcon(cat),
-                                          width: 12,
-                                          color: isSelected
-                                              ? _getCategoryColor(cat)
-                                              : gray400,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      cat,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: isSelected
-                                            ? _getCategoryColor(cat)
-                                            : gray500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                        // Kategori Selection Removed as slots are fixed
                         const SizedBox(height: 18),
 
                         // Pesan template
@@ -1142,85 +830,7 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
     );
   }
 
-  // ===== DELETE DIALOG =====
-  void _showDeleteDialog(Map<String, dynamic> template) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFEBEE),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.delete_outline_rounded,
-                  color: Color(0xFFEF4444),
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text('Hapus Template?',
-                  style: smBold.copyWith(fontSize: 17, color: textPrimary)),
-              const SizedBox(height: 8),
-              Text(
-                '"${template['title']}" akan dihapus permanen.',
-                textAlign: TextAlign.center,
-                style: sRegular.copyWith(color: gray500),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: gray100,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Batal',
-                          style: smBold.copyWith(
-                              color: textPrimary, fontSize: 14)),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _deleteTemplate(template['id']);
-                        Navigator.pop(ctx);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEF4444),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Hapus',
-                          style: smBold.copyWith(color: white, fontSize: 14)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // Removed _showDeleteDialog because slots are fixed
 
   // ===== FIREBASE CRUD =====
   Future<void> _saveTemplate({
@@ -1279,36 +889,7 @@ class _TemplateWhatsaapScreenState extends State<TemplateWhatsaapScreen> {
     }
   }
 
-  Future<void> _deleteTemplate(String id) async {
-    try {
-      await _firestore
-          .collection('shops')
-          .doc(_userId)
-          .collection('whatsappTemplates')
-          .doc(id)
-          .delete();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Template berhasil dihapus'),
-            backgroundColor: const Color(0xFF25D366),
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menghapus template: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
+  // Removed _deleteTemplate
 
   // ===== HELPERS =====
   Color _getCategoryColor(String category) {

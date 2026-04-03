@@ -2414,7 +2414,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                           ),
                           child: Center(
                             child: Text(
-                              'Sudah Lunas',
+                              'Lunas',
                               style: smBold.copyWith(
                                 color: _paymentStatus == 'paid'
                                     ? Colors.green[700]
