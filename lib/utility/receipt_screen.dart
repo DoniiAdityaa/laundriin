@@ -15,6 +15,7 @@ import 'package:laundriin/config/shop_config.dart';
 import 'package:laundriin/ui/shared_widget/main_navigation.dart';
 import 'package:laundriin/printer_service/printer_manager.dart';
 import 'package:laundriin/printer_service/receipt_genarator.dart';
+import 'package:laundriin/utility/app_loading_overlay.dart';
 
 class ReceiptScreen extends StatefulWidget {
   final String orderId;
@@ -615,39 +616,57 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   Future<void> _handlePrint() async {
     final printer = PrinterManager.instance;
 
-    // Cek Bluetooth aktif
-    final btEnabled = await printer.isBluetoothEnabled();
-    if (!btEnabled) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Bluetooth tidak aktif. Nyalakan Bluetooth terlebih dahulu.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return;
-    }
+    // Tampilkan loading saat proses pencarian & koneksi ke Bluetooth
+    AppLoading.show(context, message: 'mencari printer...');
 
-    // Cek koneksi printer
-    final connected = await printer.checkConnection();
-
-    if (!connected) {
-      // Coba reconnect ke printer terakhir
-      final reconnected = await printer.reconnectLastPrinter();
-      if (!reconnected) {
-        // Belum ada printer — tampilkan bottom sheet pilih printer
+    try {
+      // Cek Bluetooth aktif
+      final btEnabled = await printer.isBluetoothEnabled();
+      if (!btEnabled) {
         if (mounted) {
-          _showPrinterSelectionSheet();
+          AppLoading.hide(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Bluetooth tidak aktif. Nyalakan Bluetooth terlebih dahulu.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
         }
         return;
       }
-    }
 
-    // Printer sudah connected — tampilkan dialog konfirmasi
-    if (mounted) {
-      _showPrintConfirmDialog();
+      // Cek koneksi printer
+      final connected = await printer.checkConnection();
+
+      if (!connected) {
+        // Coba reconnect ke printer terakhir
+        final reconnected = await printer.reconnectLastPrinter();
+        if (!reconnected) {
+          // Belum ada printer — tampilkan bottom sheet pilih printer
+          if (mounted) {
+            AppLoading.hide(context);
+            _showPrinterSelectionSheet();
+          }
+          return;
+        }
+      }
+
+      // Printer sudah connected — tampilkan dialog konfirmasi
+      if (mounted) {
+        AppLoading.hide(context);
+        _showPrintConfirmDialog();
+      }
+    } catch (e) {
+      if (mounted) {
+        AppLoading.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
