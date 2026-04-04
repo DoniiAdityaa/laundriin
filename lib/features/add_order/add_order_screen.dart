@@ -522,6 +522,8 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
             ? int.tryParse(_weightC.text)
             : null,
         'items': itemsData.isEmpty ? null : itemsData,
+        'pricePerKilo': _pricePerKilo,
+        'expressCharge': _expressSurcharge,
         'totalPrice': _calculateTotalPrice(),
         'paymentStatus': _paymentStatus,
         'notes': _notesC.text.trim().isEmpty ? null : _notesC.text.trim(),
