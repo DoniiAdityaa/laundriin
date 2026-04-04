@@ -531,11 +531,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             icon: 'assets/svg/send_.svg',
             onTap: _isSharing ? () {} : () => _handleShare(),
           ),
-          const SizedBox(height: 12),
-          _floatingButton(
-            icon: 'assets/svg/whatsapp_.svg',
-            onTap: _isSharing ? () {} : () => _handleWhatsAppDirect(),
-          ),
+          // const SizedBox(height: 12),
+          // _floatingButton(
+          //   icon: 'assets/svg/whatsapp_.svg',
+          //   onTap: _isSharing ? () {} : () => _handleWhatsAppDirect(),
+          // ),
         ],
       ),
     );
@@ -590,30 +590,36 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   // ===== SHARE TO WHATSAPP (TEXT ONLY, DIRECT TO CONTACT) =====
-  Future<void> _handleWhatsAppDirect() async {
-    final messageText =
-        'Halo ${widget.customerName}, berikut struk pesanan Anda:\n\n'
-        '🧾 *STRUK PEMESANAN*\n'
-        '━━━━━━━━━━━━━━━\n'
-        '📋 Order ID: ${widget.orderId}\n'
-        '👤 Pelanggan: ${widget.customerName}\n'
-        '📅 Tanggal: ${_formatDate(widget.orderDate)}\n'
-        '🧺 Layanan: ${_getServiceDisplay()}\n'
-        '⚡ Kecepatan: ${_getSpeedDisplay()}\n'
-        '━━━━━━━━━━━━━━━\n'
-        '💰 *Total: Rp ${_formatNumber(widget.totalPrice)}*\n'
-        '━━━━━━━━━━━━━━━\n\n'
-        'Terima kasih! 🙏';
+  // Future<void> _handleWhatsAppDirect() async {
+  //   if (_isSharing) return;
+  //   setState(() => _isSharing = true);
 
-    String phoneNumber = widget.customerPhone;
-    if (phoneNumber.startsWith('0')) {
-      phoneNumber = '62${phoneNumber.substring(1)}';
-    }
+  //   try {
+  //     final file = await _captureReceipt();
+  //     if (file == null) {
+  //       if (mounted) setState(() => _isSharing = false);
+  //       return;
+  //     }
+  //     // 2. Compose message text
+  //     final message =
+  //         'Halo ${widget.customerName}, berikut struk pesanan Anda:\n\n'
+  //         '🧾 *STRUK PEMESANAN*\n'
+  //         '━━━━━━━━━━━━━━━\n'
+  //         '📋 Order ID: ${widget.orderId}\n'
+  //         '👤 Pelanggan: ${widget.customerName}\n'
+  //         '📅 Tanggal: ${_formatDate(widget.orderDate)}\n'
+  //         '🧺 Layanan: ${_getServiceDisplay()}\n'
+  //         '⚡ Kecepatan: ${_getSpeedDisplay()}\n'
+  //         '━━━━━━━━━━━━━━━\n'
+  //         '💰 *Total: Rp ${_formatNumber(widget.totalPrice)}*\n'
+  //         '━━━━━━━━━━━━━━━\n\n'
+  //         'Terima kasih! 🙏';
 
-    context
-        .read<WablasCubit>()
-        .sendWhatsAppMessage(phone: phoneNumber, message: messageText);
-  }
+  //     await Share.shareXFiles([XFile(file.path)], text: message);
+  //   } finally {
+  //     if (mounted) setState(() => _isSharing = false);
+  //   }
+  // }
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/'
