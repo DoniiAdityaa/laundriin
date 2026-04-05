@@ -290,10 +290,23 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }) {
     return TextField(
       controller: controller,
+      onChanged: (_) {
+        setState(() {});
+      },
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: smRegular.copyWith(color: Colors.grey[400]),
         prefixIcon: Icon(Icons.search, color: Colors.grey[400], size: 20),
+        suffixIcon: controller.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                color: Colors.grey[500],
+                onPressed: () {
+                  controller.clear();
+                  setState(() {});
+                },
+              )
+            : null,
         filled: true,
         fillColor: bgCard,
         contentPadding:

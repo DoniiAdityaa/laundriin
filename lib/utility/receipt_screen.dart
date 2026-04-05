@@ -90,6 +90,29 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgApp,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 40, right: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _floatingButton(
+              icon: 'assets/svg/print_.svg',
+              onTap: _isPrinting ? () {} : () => _handlePrint(),
+            ),
+            const SizedBox(height: 12),
+            _floatingButton(
+              icon: 'assets/svg/send_.svg',
+              onTap: _isSharing ? () {} : () => _handleShare(),
+            ),
+            const SizedBox(height: 12),
+            _floatingButton(
+              icon: 'assets/svg/whatsapp_.svg',
+              onTap: _isSharing ? () {} : () => _handleWhatsAppDirect(),
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: Stack(
           children: [
@@ -111,8 +134,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 ],
               ),
             ),
-            // Bottom Action Buttons
-            _buildActionButtons(),
+            // // Bottom Action Buttons
+            // _buildActionButtons(),
           ],
         ),
       ),
@@ -531,11 +554,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             icon: 'assets/svg/send_.svg',
             onTap: _isSharing ? () {} : () => _handleShare(),
           ),
-          // const SizedBox(height: 12),
-          // _floatingButton(
-          //   icon: 'assets/svg/whatsapp_.svg',
-          //   onTap: _isSharing ? () {} : () => _handleWhatsAppDirect(),
-          // ),
+          const SizedBox(height: 12),
+          _floatingButton(
+            icon: 'assets/svg/whatsapp_.svg',
+            onTap: _isSharing ? () {} : () => _handleWhatsAppDirect(),
+          ),
         ],
       ),
     );
@@ -590,36 +613,36 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   // ===== SHARE TO WHATSAPP (TEXT ONLY, DIRECT TO CONTACT) =====
-  // Future<void> _handleWhatsAppDirect() async {
-  //   if (_isSharing) return;
-  //   setState(() => _isSharing = true);
+  Future<void> _handleWhatsAppDirect() async {
+    if (_isSharing) return;
+    setState(() => _isSharing = true);
 
-  //   try {
-  //     final file = await _captureReceipt();
-  //     if (file == null) {
-  //       if (mounted) setState(() => _isSharing = false);
-  //       return;
-  //     }
-  //     // 2. Compose message text
-  //     final message =
-  //         'Halo ${widget.customerName}, berikut struk pesanan Anda:\n\n'
-  //         '🧾 *STRUK PEMESANAN*\n'
-  //         '━━━━━━━━━━━━━━━\n'
-  //         '📋 Order ID: ${widget.orderId}\n'
-  //         '👤 Pelanggan: ${widget.customerName}\n'
-  //         '📅 Tanggal: ${_formatDate(widget.orderDate)}\n'
-  //         '🧺 Layanan: ${_getServiceDisplay()}\n'
-  //         '⚡ Kecepatan: ${_getSpeedDisplay()}\n'
-  //         '━━━━━━━━━━━━━━━\n'
-  //         '💰 *Total: Rp ${_formatNumber(widget.totalPrice)}*\n'
-  //         '━━━━━━━━━━━━━━━\n\n'
-  //         'Terima kasih! 🙏';
+    try {
+      final file = await _captureReceipt();
+      if (file == null) {
+        if (mounted) setState(() => _isSharing = false);
+        return;
+      }
+      // 2. Compose message text
+      final message =
+          'Halo ${widget.customerName}, berikut struk pesanan Anda:\n\n'
+          '🧾 *STRUK PEMESANAN*\n'
+          '━━━━━━━━━━━━━━━\n'
+          '📋 Order ID: ${widget.orderId}\n'
+          '👤 Pelanggan: ${widget.customerName}\n'
+          '📅 Tanggal: ${_formatDate(widget.orderDate)}\n'
+          '🧺 Layanan: ${_getServiceDisplay()}\n'
+          '⚡ Kecepatan: ${_getSpeedDisplay()}\n'
+          '━━━━━━━━━━━━━━━\n'
+          '💰 *Total: Rp ${_formatNumber(widget.totalPrice)}*\n'
+          '━━━━━━━━━━━━━━━\n\n'
+          'Terima kasih! 🙏';
 
-  //     await Share.shareXFiles([XFile(file.path)], text: message);
-  //   } finally {
-  //     if (mounted) setState(() => _isSharing = false);
-  //   }
-  // }
+      await Share.shareXFiles([XFile(file.path)], text: message);
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
+  }
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/'
