@@ -537,33 +537,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     );
   }
 
-  // ===== Bottom Action Buttons =====
-  Widget _buildActionButtons() {
-    return Positioned(
-      right: 11,
-      bottom: 0,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _floatingButton(
-            icon: 'assets/svg/print_.svg',
-            onTap: _isPrinting ? () {} : () => _handlePrint(),
-          ),
-          const SizedBox(height: 12),
-          _floatingButton(
-            icon: 'assets/svg/send_.svg',
-            onTap: _isSharing ? () {} : () => _handleShare(),
-          ),
-          const SizedBox(height: 12),
-          _floatingButton(
-            icon: 'assets/svg/whatsapp_.svg',
-            onTap: _isSharing ? () {} : () => _handleWhatsAppDirect(),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ===== CAPTURE RECEIPT AS IMAGE =====
   Future<File?> _captureReceipt() async {
     try {

@@ -390,8 +390,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           items: items,
           totalPrice: totalPrice,
           notes: _orderData['notes'],
-          pricePerKilo: _orderData['pricePerKilo'] ?? 0, // Fallback to 0 for old data
-          expressCharge: _orderData['expressCharge'] ?? 0, // Fallback to 0 for old data
+          pricePerKilo:
+              _orderData['pricePerKilo'] ?? 0, // Fallback to 0 for old data
+          expressCharge:
+              _orderData['expressCharge'] ?? 0, // Fallback to 0 for old data
         ),
       ),
     );
