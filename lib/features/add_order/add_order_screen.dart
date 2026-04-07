@@ -8,9 +8,8 @@ import 'package:laundriin/utility/app_dialogs.dart';
 import 'package:laundriin/utility/app_loading_overlay.dart';
 import 'package:laundriin/utility/receipt_screen.dart';
 import 'package:laundriin/config/shop_config.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:laundriin/features/orders/cubit/wablas_cubit.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AddOrderScreen extends StatefulWidget {
   const AddOrderScreen({super.key});
@@ -2972,20 +2971,21 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         }
         cleanPhone = cleanPhone.replaceAll('+', '');
 
-        // 4. Kirim menggunakan Wablas API
-        print(
-            '[WABLAS] Mengirim template Menunggu ke $cleanPhone otomatis pada saat Add Order...');
-        context.read<WablasCubit>().sendWhatsAppMessage(
-              phone: cleanPhone,
-              message: message,
-            );
+        // 4. Buka WhatsApp Manual (user tinggal klik Kirim)
+        print('[WHATSAPP MANUAL] Membuka WhatsApp ke $cleanPhone...');
+        final waUrl = Uri.parse(
+            'https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}');
+        if (await canLaunchUrl(waUrl)) {
+          await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+        } else {
+          print('[WHATSAPP MANUAL] Gagal membuka WhatsApp.');
+        }
       } else {
         print(
-            '[WABLAS] Template "Menunggu" tidak ditemukan di Firestore, pesan otomatis dibatalkan.');
+            '[WHATSAPP MANUAL] Template "Menunggu" tidak ditemukan, pesan dibatalkan.');
       }
     } catch (e) {
-      print(
-          '[WABLAS] Gagal mengambil template atau mengirim pesan otomatis: $e');
+      print('[WHATSAPP MANUAL] Gagal membuka WhatsApp: $e');
     }
   }
 }
