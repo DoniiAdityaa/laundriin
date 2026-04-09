@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.1+2
+version: 1.0.1+3
 
 environment:
   sdk: ^3.6.2
@@ -34,45 +34,22 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-   # UI
+  # UI
   flutter_svg: ^2.0.10+1
-  dotted_border: ^2.1.0
-  dashed_line: ^0.1.0+3
-  carousel_slider: ^5.0.0
-  dotted_line: ^3.2.3
-  font_awesome_flutter: ^10.8.0
-  flutter_widget_from_html: ^0.15.2
-  grouped_list: ^6.0.0
-  shimmer: ^3.0.0
-  flutter_lazy_indexed_stack: ^0.0.6
-  with_space_between: ^0.0.2
-  table_calendar: ^3.1.0
-  pin_code_fields: ^8.0.1
-  dropdown_button2: ^2.3.9
   cached_network_image: ^3.4.1
-  modal_bottom_sheet: ^3.0.0
-  webview_flutter: ^4.10.0
-  camera: ^0.11.0+2
-  photo_view: ^0.14.0
-  flutter_html: ^3.0.0
-
-  # dropdown
-  dropdown_search: ^6.0.2
+  flutter_lazy_indexed_stack: ^0.0.6
 
   # maps
   google_maps_flutter: ^2.11.0
-  geolocator: ^14.0.2
+  geocoding: ^4.0.0
 
   # Firebase
   firebase_messaging: ^16.0.4
   firebase_crashlytics: ^5.0.5
-  firebase_database: ^12.1.0
   firebase_auth: ^6.1.2
   firebase_core: ^4.2.1
   cloud_firestore: ^6.1.2
   google_sign_in: ^6.2.1
-  sign_in_with_apple: ^7.0.1
-  # flutter_local_notifications: ^19.5.0
 
   # utilities
   permission_handler: ^11.0.1
@@ -82,29 +59,13 @@ dependencies:
   url_launcher: ^6.2.5
   intl: ^0.20.2
   image_picker: ^1.2.1
-  super_tooltip: ^2.0.8
-  open_file: ^3.5.11
-  file_picker: ^8.1.2
-  encrypt: ^5.0.3
   envied: ^1.0.0
-  dotted_decoration: ^2.0.0
   path_provider: ^2.1.4
   share_plus: ^10.1.4
   flutter_downloader: ^1.11.8
   equatable: ^2.0.5
-  flutter_pdfview: ^1.4.0
-  path: ^1.9.0
-  jiffy: ^6.3.2
   http: ^1.2.0
   image: ^4.1.0
-
-  
-
-
-  # Transision & Animation
-  page_transition: ^2.2.1
-
-
 
   # State Management
   flutter_bloc: ^8.0.1
@@ -118,28 +79,14 @@ dependencies:
 
   # User Preference & Local storage
   shared_preferences: ^2.2.3
-  sqflite: ^2.3.3+1
-
 
   # Networking
   retrofit: ^4.9.2
   dio: ^5.4.1
   awesome_dio_interceptor: ^1.0.0
   socket_io_client: ^3.0.2
- 
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  marquee: ^2.3.0
-  location: ^8.0.1
-  change_app_package_name: ^1.5.0
-  apple_maps_flutter: ^1.4.0
-  latlong2: ^0.9.1
-  geocoding: ^4.0.0
-  flutter_fortune_wheel: ^1.3.2
-  flutter_flavorizr: ^2.4.1
-  cloudinary_api: ^1.1.1
   fl_chart: ^0.65.0
   print_bluetooth_thermal: ^1.1.9
   pdf: ^3.11.3

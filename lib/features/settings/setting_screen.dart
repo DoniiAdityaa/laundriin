@@ -572,15 +572,15 @@ class _SettingScreenState extends State<SettingScreen> {
 
       const SizedBox(height: 10),
 
-      // ===== Debug: Delete All Orders (Development Only) =====
-      _buildMenuCard(
-        icon: Icons.delete_sweep_rounded,
-        title: "Hapus Semua Pesanan",
-        subtitle: "hapus semua data pesanan (debug)",
-        iconBgColor: const Color(0xFFFFEBEE),
-        iconColor: const Color(0xFFEF4444),
-        onTap: _deleteAllOrders,
-      ),
+      // // ===== Debug: Delete All Orders (Development Only) =====
+      // _buildMenuCard(
+      //   icon: Icons.delete_sweep_rounded,
+      //   title: "Hapus Semua Pesanan",
+      //   subtitle: "hapus semua data pesanan (debug)",
+      //   iconBgColor: const Color(0xFFFFEBEE),
+      //   iconColor: const Color(0xFFEF4444),
+      //   onTap: _deleteAllOrders,
+      // ),
     ];
   }
 
