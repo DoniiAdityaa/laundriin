@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/api/api_service.dart';
 import 'constant.dart';
+import 'env/env.dart';
 
 /// Global [GetIt.instance].
 final GetIt serviceLocator = GetIt.instance;
@@ -34,7 +35,7 @@ Future<void> setUpLocator() async {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        // "apikey": Env.apiKey,
+        'X-API-KEY': Env.apiKey,
         'Authorization':
             'Bearer ${serviceLocator.get<UserPreference>().getToken()}'
       },
