@@ -2949,8 +2949,8 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
             ? 'Setrika'
             : serviceType == 'dryWash'
                 ? 'Cuci Kering'
-                : serviceType == 'carpet'
-                    ? 'Karpet'
+                : serviceType == 'steamIroning'
+                    ? 'Setrika Uap'
                     : 'Laundry';
 
     String dateStr = '';
