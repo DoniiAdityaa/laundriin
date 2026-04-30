@@ -11,6 +11,7 @@ import 'package:laundriin/config/shop_config.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:laundriin/features/orders/cubit/wablas_cubit.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AddOrderScreen extends StatefulWidget {
   const AddOrderScreen({super.key});
@@ -39,7 +40,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   // ====== STEP 2: SERVICE ORDER STATE ======
   String _selectedCategory = 'Kiloan'; // Kiloan / Satuan / Campuran
   String _selectedServiceType =
-      'washComplete'; // washComplete / ironing / dryWash / steamIroning
+      'komplit'; // komplit / setrika / kering / karpet
   String _selectedSpeed = 'Regular'; // Regular / Express
   final _weightC = TextEditingController(); // For Kiloan/Campuran
   final _qtyC = TextEditingController(); // For Satuan/Campuran
@@ -47,16 +48,29 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
   String _paymentStatus = 'unpaid'; // Payment status (unpaid/paid)
 
   // Pricing from database
-  int _pricePerKilo = 0;
-  int _expressSurcharge = 0;
-  int _ironingPrice = 0;
-  int _dryWashPrice = 0;
-  int _steamIroningPrice = 0;
+  int _komplitRegularPrice = 0;
+  int _komplitExpressPrice = 0;
+  int _komplitRegularHours = 48;
+  int _komplitExpressHours = 24;
+
+  int _setrikaRegularPrice = 0;
+  int _setrikaExpressPrice = 0;
+  int _setrikaRegularHours = 48;
+  int _setrikaExpressHours = 24;
+
+  int _keringRegularPrice = 0;
+  int _keringExpressPrice = 0;
+  int _keringRegularHours = 48;
+  int _keringExpressHours = 24;
+
+  int _karpetRegularPrice = 0;
+  int _karpetExpressPrice = 0;
+  int _karpetRegularHours = 48;
+  int _karpetExpressHours = 24;
   List<Map<String, dynamic>> _nonKiloanItems = [];
   final Map<String, int> _nonKiloanSelectedItems = {}; // item id -> quantity
 
   // Track shop settings loading
-  bool _shopSettingsLoaded = false;
 
   // Prevent duplicate orders
   String? _pendingOrderId; // Reuse same orderId on retry
@@ -75,11 +89,11 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
       // Load shop info + delivery config dari database
       await ShopSettings.loadFromFirestore(_userId);
       await DeliveryConfig.loadFromDatabase(_userId); // Load express hours
-      setState(() => _shopSettingsLoaded = true);
+      // Do something if needed
       print('[INIT] ✅ Shop settings & delivery config loaded successfully');
     } catch (e) {
       print('[ERROR] Failed to load settings: $e');
-      setState(() => _shopSettingsLoaded = true);
+      // Optionally handle failure here
     }
   }
 
@@ -91,15 +105,29 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         final nonKiloanList = pricing['nonKiloItems'] ?? [];
 
         setState(() {
-          _pricePerKilo = pricing['pricePerKilo'] ?? 0;
-          _expressSurcharge = pricing['expressSurcharge'] ?? 0;
-          _ironingPrice = pricing['ironing'] ?? 0;
-          _dryWashPrice = pricing['dryWash'] ?? 0;
-          _steamIroningPrice = pricing['steamIroning'] ?? 0;
+          _komplitRegularPrice = pricing['komplitRegularPrice'] ?? 0;
+          _komplitExpressPrice = pricing['komplitExpressPrice'] ?? 0;
+          _komplitRegularHours = pricing['komplitRegularHours'] ?? 48;
+          _komplitExpressHours = pricing['komplitExpressHours'] ?? 24;
+
+          _setrikaRegularPrice = pricing['setrikaRegularPrice'] ?? 0;
+          _setrikaExpressPrice = pricing['setrikaExpressPrice'] ?? 0;
+          _setrikaRegularHours = pricing['setrikaRegularHours'] ?? 48;
+          _setrikaExpressHours = pricing['setrikaExpressHours'] ?? 24;
+
+          _keringRegularPrice = pricing['keringRegularPrice'] ?? 0;
+          _keringExpressPrice = pricing['keringExpressPrice'] ?? 0;
+          _keringRegularHours = pricing['keringRegularHours'] ?? 48;
+          _keringExpressHours = pricing['keringExpressHours'] ?? 24;
+
+          _karpetRegularPrice = pricing['karpetRegularPrice'] ?? 0;
+          _karpetExpressPrice = pricing['karpetExpressPrice'] ?? 0;
+          _karpetRegularHours = pricing['karpetRegularHours'] ?? 48;
+          _karpetExpressHours = pricing['karpetExpressHours'] ?? 24;
+
           _nonKiloanItems = List<Map<String, dynamic>>.from(nonKiloanList);
         });
-        print(
-            '[LOAD] Pricing: Wash=$_pricePerKilo, Ironing=$_ironingPrice, DryWash=$_dryWashPrice, SteamIroning=$_steamIroningPrice');
+        print('[LOAD] Pricing data loaded for all categories');
       }
     } catch (e) {
       print('[ERROR] Load pricing: $e');
@@ -505,6 +533,22 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         print('[ITEMS DATA] Kosong (kategori kiloan atau tidak ada items)');
       }
 
+      int servicePrice = _komplitRegularPrice;
+      int expressPrice = _komplitExpressPrice;
+      if (_selectedServiceType == 'setrika') {
+        servicePrice = _setrikaRegularPrice;
+        expressPrice = _setrikaExpressPrice;
+      } else if (_selectedServiceType == 'kering') {
+        servicePrice = _keringRegularPrice;
+        expressPrice = _keringExpressPrice;
+      } else if (_selectedServiceType == 'karpet') {
+        servicePrice = _karpetRegularPrice;
+        expressPrice = _karpetExpressPrice;
+      }
+
+      int activePrice =
+          (_selectedSpeed == 'Express') ? expressPrice : servicePrice;
+
       final orderData = {
         'orderId': orderId,
         'customerId': _selectedCustomerId,
@@ -522,8 +566,8 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
             ? int.tryParse(_weightC.text)
             : null,
         'items': itemsData.isEmpty ? null : itemsData,
-        'pricePerKilo': _pricePerKilo,
-        'expressCharge': _expressSurcharge,
+        'pricePerKilo': activePrice,
+        'expressCharge': 0, // Express pricing is integrated into activePrice
         'totalPrice': _calculateTotalPrice(),
         'paymentStatus': _paymentStatus,
         'notes': _notesC.text.trim().isEmpty ? null : _notesC.text.trim(),
@@ -634,8 +678,8 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                   notes: _notesC.text.trim().isNotEmpty
                       ? _notesC.text.trim()
                       : null,
-                  pricePerKilo: _pricePerKilo,
-                  expressCharge: _expressSurcharge,
+                  pricePerKilo: activePrice,
+                  expressCharge: 0,
                   source: 'home', // Dari Add Order, source adalah 'home'
                 ),
               ),
@@ -1323,21 +1367,38 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
   // ====== STEP 2: SERVICE ORDER ======
   Widget _buildStep2() {
-    // Get selected service price
-    int selectedServicePrice = _pricePerKilo; // default wash complete
-    if (_selectedServiceType == 'ironing') {
-      selectedServicePrice = _ironingPrice;
-    } else if (_selectedServiceType == 'dryWash') {
-      selectedServicePrice = _dryWashPrice;
-    } else if (_selectedServiceType == 'steamIroning') {
-      selectedServicePrice = _steamIroningPrice;
+    // Get selected service price & duration
+    int selectedServicePrice = _komplitRegularPrice;
+    int selectedExpressPrice = _komplitExpressPrice;
+    int regularHours = _komplitRegularHours;
+    int expressHours = _komplitExpressHours;
+
+    if (_selectedServiceType == 'setrika') {
+      selectedServicePrice = _setrikaRegularPrice;
+      selectedExpressPrice = _setrikaExpressPrice;
+      regularHours = _setrikaRegularHours;
+      expressHours = _setrikaExpressHours;
+    } else if (_selectedServiceType == 'kering') {
+      selectedServicePrice = _keringRegularPrice;
+      selectedExpressPrice = _keringExpressPrice;
+      regularHours = _keringRegularHours;
+      expressHours = _keringExpressHours;
+    } else if (_selectedServiceType == 'karpet') {
+      selectedServicePrice = _karpetRegularPrice;
+      selectedExpressPrice = _karpetExpressPrice;
+      regularHours = _karpetRegularHours;
+      expressHours = _karpetExpressHours;
     }
+
+    int activePrice = (_selectedSpeed == 'Express')
+        ? selectedExpressPrice
+        : selectedServicePrice;
 
     // Calculate price based on selections
     int basePrice = 0;
     if (_selectedCategory == 'Kiloan' && _weightC.text.isNotEmpty) {
       final weight = double.tryParse(_weightC.text) ?? 0;
-      basePrice = (selectedServicePrice * weight).toInt();
+      basePrice = (activePrice * weight).toInt();
     } else if (_selectedCategory == 'Satuan') {
       // Calculate total price for selected satuan items
       _nonKiloanSelectedItems.forEach((itemId, qty) {
@@ -1354,7 +1415,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
       // Kiloan part
       if (_weightC.text.isNotEmpty) {
         final weight = double.tryParse(_weightC.text) ?? 0;
-        basePrice = (selectedServicePrice * weight).toInt();
+        basePrice = (activePrice * weight).toInt();
       }
       // Satuan items part
       _nonKiloanSelectedItems.forEach((itemId, qty) {
@@ -1368,8 +1429,14 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
       });
     }
 
-    int expressPrice = (_selectedSpeed == 'Express') ? _expressSurcharge : 0;
-    int totalPrice = basePrice + expressPrice;
+    int totalPrice = basePrice;
+
+    String formatDuration(int hours) {
+      if (hours >= 24 && hours % 24 == 0) {
+        return '${hours ~/ 24} Hari';
+      }
+      return '$hours Jam';
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1415,7 +1482,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                       children: [
                         Expanded(
                           child: _buildServiceButton(
-                            'washComplete',
+                            'komplit',
                             'Komplit',
                             'Cuci + Setrika',
                           ),
@@ -1423,7 +1490,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildServiceButton(
-                            'ironing',
+                            'setrika',
                             'Setrika',
                             'Hanya setrika',
                           ),
@@ -1435,7 +1502,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                       children: [
                         Expanded(
                           child: _buildServiceButton(
-                            'dryWash',
+                            'kering',
                             'Kering',
                             'Hanya cuci',
                           ),
@@ -1443,9 +1510,9 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildServiceButton(
-                            'steamIroning',
-                            'Uap',
-                            'Setrika uap',
+                            'karpet',
+                            'Karpet',
+                            'Cuci karpet',
                           ),
                         ),
                       ],
@@ -1492,7 +1559,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                 const SizedBox(
                                   height: 2,
                                 ),
-                                Text('(3-4 hari)',
+                                Text('(${formatDuration(regularHours)})',
                                     style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
@@ -1532,15 +1599,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                // Text(
-                                //   '+Rp ${_formatNumber(_expressSurcharge)}',
-                                //   style: xsRegular.copyWith(
-                                //     color: _selectedSpeed == 'Express'
-                                //         ? Colors.grey[400]
-                                //         : textMuted,
-                                //   ),
-                                // ),
-                                Text('(1-2 hari)',
+                                Text('(${formatDuration(expressHours)})',
                                     style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
@@ -1586,7 +1645,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                 const SizedBox(
                   height: 8,
                 ),
-                Text('Harga: Rp ${_formatNumber(selectedServicePrice)} per kg',
+                Text('Harga: Rp ${_formatNumber(activePrice)} per kg',
                     style: xsRegular.copyWith(color: textMuted)),
               ] else if (_selectedCategory == 'Satuan') ...[
                 // ===== Speed Selection =====
@@ -1627,7 +1686,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                 const SizedBox(
                                   height: 2,
                                 ),
-                                Text('(3-4 hari)',
+                                Text('(${formatDuration(regularHours)})',
                                     style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
@@ -1675,7 +1734,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                 //         : textMuted,
                                 //   ),
                                 // ),
-                                Text('(1-2 hari)',
+                                Text('(${formatDuration(expressHours)})',
                                     style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
@@ -1877,7 +1936,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Text('(3-4 hari)',
+                                Text('(${formatDuration(regularHours)})',
                                     style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
@@ -1925,7 +1984,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                                 //         : textMuted,
                                 //   ),
                                 // ),
-                                Text('(1-2 hari)',
+                                Text('(${formatDuration(expressHours)})',
                                     style: xsRegular.copyWith(color: textMuted))
                               ],
                             ),
@@ -1969,7 +2028,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                 const SizedBox(
                   height: 8,
                 ),
-                Text('Harga: Rp ${_formatNumber(selectedServicePrice)} per kg',
+                Text('Harga: Rp ${_formatNumber(activePrice)} per kg',
                     style: xsRegular.copyWith(color: textMuted)),
               ],
             ],
@@ -2197,22 +2256,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                 ),
               ],
 
-              if (_selectedSpeed == 'Express') ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Biaya Express:',
-                      style: sRegular.copyWith(color: textSecondary),
-                    ),
-                    Text(
-                      '+Rp ${_formatNumber(expressPrice)}',
-                      style: smBold.copyWith(color: Colors.orange[700]),
-                    ),
-                  ],
-                ),
-              ],
+              // Removed Express Add-on UI since Express is now a base price
               const SizedBox(height: 12),
               Divider(color: borderLight),
               const SizedBox(height: 12),
@@ -2245,14 +2289,21 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
             : 'Campuran';
 
     // Determine service price based on selected service type
-    int servicePrice = _pricePerKilo; // default wash complete
-    if (_selectedServiceType == 'ironing') {
-      servicePrice = _ironingPrice;
-    } else if (_selectedServiceType == 'dryWash') {
-      servicePrice = _dryWashPrice;
-    } else if (_selectedServiceType == 'steamIroning') {
-      servicePrice = _steamIroningPrice;
+    int servicePrice = _komplitRegularPrice;
+    int expressPrice = _komplitExpressPrice;
+    if (_selectedServiceType == 'setrika') {
+      servicePrice = _setrikaRegularPrice;
+      expressPrice = _setrikaExpressPrice;
+    } else if (_selectedServiceType == 'kering') {
+      servicePrice = _keringRegularPrice;
+      expressPrice = _keringExpressPrice;
+    } else if (_selectedServiceType == 'karpet') {
+      servicePrice = _karpetRegularPrice;
+      expressPrice = _karpetExpressPrice;
     }
+
+    int activePrice =
+        (_selectedSpeed == 'Express') ? expressPrice : servicePrice;
 
     return SingleChildScrollView(
       child: Column(
@@ -2324,7 +2375,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           // ===== SECTION 2: Order Details + Price Breakdown (REDESIGNED) =====
           _buildDetailPesananSection(
             categoryLabel,
-            servicePrice,
+            activePrice,
           ),
           const SizedBox(height: 20),
 
@@ -2512,32 +2563,31 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
     int total = 0;
 
     // Determine service price based on selected service type
-    int servicePrice = _pricePerKilo; // default wash complete
-    if (_selectedServiceType == 'ironing') {
-      servicePrice = _ironingPrice;
-    } else if (_selectedServiceType == 'dryWash') {
-      servicePrice = _dryWashPrice;
-    } else if (_selectedServiceType == 'steamIroning') {
-      servicePrice = _steamIroningPrice;
+    int servicePrice = _komplitRegularPrice;
+    int expressPrice = _komplitExpressPrice;
+    if (_selectedServiceType == 'setrika') {
+      servicePrice = _setrikaRegularPrice;
+      expressPrice = _setrikaExpressPrice;
+    } else if (_selectedServiceType == 'kering') {
+      servicePrice = _keringRegularPrice;
+      expressPrice = _keringExpressPrice;
+    } else if (_selectedServiceType == 'karpet') {
+      servicePrice = _karpetRegularPrice;
+      expressPrice = _karpetExpressPrice;
     }
+
+    int activePrice =
+        (_selectedSpeed == 'Express') ? expressPrice : servicePrice;
 
     if (_selectedCategory == 'Kiloan') {
       int weight = int.tryParse(_weightC.text) ?? 0;
-      // Semua service type (Komplit, Setrika, Kering, Uap) gunakan service price per kg
-      total = servicePrice * weight;
-
-      // Hanya Express yang menambah harga
-      if (_selectedSpeed == 'Express') total += _expressSurcharge;
+      total = activePrice * weight;
     } else if (_selectedCategory == 'Satuan') {
       total = _calculateSatuanPrice();
-
-      if (_selectedSpeed == 'Express') total += _expressSurcharge;
     } else if (_selectedCategory == 'Campuran') {
       int weight = int.tryParse(_weightC.text) ?? 0;
-      total = servicePrice * weight;
+      total = activePrice * weight;
       total += _calculateSatuanPrice();
-
-      if (_selectedSpeed == 'Express') total += _expressSurcharge;
     }
 
     return total;
@@ -2727,13 +2777,13 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           // Items based on category
           if (_selectedCategory == 'Kiloan') ...[
             _buildDetailPesananItem(
-              label: _selectedServiceType == 'washComplete'
+              label: _selectedServiceType == 'komplit'
                   ? 'Cuci Komplit'
-                  : _selectedServiceType == 'ironing'
+                  : _selectedServiceType == 'setrika'
                       ? 'Setrika'
-                      : _selectedServiceType == 'dryWash'
+                      : _selectedServiceType == 'kering'
                           ? 'Cuci Kering'
-                          : 'Uap',
+                          : 'Karpet',
               quantity: _weightC.text.isEmpty ? '0' : _weightC.text,
               unit: 'Kg',
               unitPrice: servicePrice,
@@ -2759,7 +2809,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
             // Kiloan part
             _buildDetailPesananItem(
               label:
-                  '${_selectedServiceType == 'washComplete' ? 'Cuci Komplit' : _selectedServiceType == 'ironing' ? 'Setrika' : _selectedServiceType == 'dryWash' ? 'Cuci Kering' : 'Uap'} (Kiloan)',
+                  '${_selectedServiceType == 'komplit' ? 'Cuci Komplit' : _selectedServiceType == 'setrika' ? 'Setrika' : _selectedServiceType == 'kering' ? 'Cuci Kering' : 'Karpet'} (Kiloan)',
               quantity: _weightC.text.isEmpty ? '0' : _weightC.text,
               unit: 'Kg',
               unitPrice: servicePrice,
@@ -2785,25 +2835,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           ],
 
           // ===== BIAYA TAMBAHAN SECTION =====
-          if (_selectedSpeed == 'Express') ...[
-            const SizedBox(height: 16),
-            Text(
-              'BIAYA TAMBAHAN',
-              style: sRegular.copyWith(
-                color: textMuted,
-                letterSpacing: 0.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _buildDetailPesananItem(
-              label: 'Express',
-              quantity: '1',
-              unit: 'order',
-              unitPrice: _expressSurcharge,
-              isAddOn: true,
-            ),
-          ],
+          // (Express surcharge removed, already included in activePrice)
 
           // ===== DIVIDER =====
           const SizedBox(height: 16),
@@ -2917,8 +2949,8 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
             ? 'Setrika'
             : serviceType == 'dryWash'
                 ? 'Cuci Kering'
-                : serviceType == 'steamIroning'
-                    ? 'Setrika Uap'
+                : serviceType == 'carpet'
+                    ? 'Karpet'
                     : 'Laundry';
 
     String dateStr = '';
@@ -2972,20 +3004,21 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
         }
         cleanPhone = cleanPhone.replaceAll('+', '');
 
-        // 4. Kirim menggunakan Wablas API
-        print(
-            '[WABLAS] Mengirim template Menunggu ke $cleanPhone otomatis pada saat Add Order...');
-        context.read<WablasCubit>().sendWhatsAppMessage(
-              phone: cleanPhone,
-              message: message,
-            );
+        // 4. Buka WhatsApp Manual (user tinggal klik Kirim)
+        print('[WHATSAPP MANUAL] Membuka WhatsApp ke $cleanPhone...');
+        final waUrl = Uri.parse(
+            'https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}');
+        if (await canLaunchUrl(waUrl)) {
+          await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+        } else {
+          print('[WHATSAPP MANUAL] Gagal membuka WhatsApp.');
+        }
       } else {
         print(
-            '[WABLAS] Template "Menunggu" tidak ditemukan di Firestore, pesan otomatis dibatalkan.');
+            '[WHATSAPP MANUAL] Template "Menunggu" tidak ditemukan, pesan dibatalkan.');
       }
     } catch (e) {
-      print(
-          '[WABLAS] Gagal mengambil template atau mengirim pesan otomatis: $e');
+      print('[WHATSAPP MANUAL] Gagal membuka WhatsApp: $e');
     }
   }
 }

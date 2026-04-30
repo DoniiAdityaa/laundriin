@@ -43,7 +43,7 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
       'color': const Color(0xFF7CB4FF), // Soft Sky Blue
     },
     {
-      'name': 'Setrika Uap',
+      'name': 'Karpet',
       'color':
           const Color(0xFF8FD3D6), // Soft Pastel Cyan (beda tapi masih calm)
     },
@@ -121,7 +121,7 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
       'Cuci Komplit': 0,
       'Cuci Kering': 0,
       'Setrika': 0,
-      'Setrika Uap': 0,
+      'Karpet': 0,
     };
 
     for (var doc in snapshot.docs) {
@@ -132,20 +132,13 @@ class _ServiceDistributionChartState extends State<ServiceDistributionChart> {
 
       final lowerType = serviceType.toLowerCase();
 
-      // Check for Setrika Uap (steamIroning, steam ironing, steam_ironing)
-      if (lowerType.contains('steam')) {
-        mappedService = 'Setrika Uap';
-      }
-      // Check for Cuci Kering (dry wash, drywash, dry_wash)
-      else if (lowerType.contains('dry')) {
+      if (lowerType == 'karpet' || lowerType.contains('steam') || lowerType == 'carpet') {
+        mappedService = 'Karpet';
+      } else if (lowerType == 'kering' || lowerType.contains('dry') || lowerType == 'drywash') {
         mappedService = 'Cuci Kering';
-      }
-      // Check for Setrika (ironing, setrika)
-      else if (lowerType.contains('iron') || lowerType.contains('setrika')) {
+      } else if (lowerType == 'setrika' || lowerType.contains('iron') || lowerType == 'ironing') {
         mappedService = 'Setrika';
-      }
-      // Default: Cuci Komplit (wash, kiloan, laundry, atau default)
-      else {
+      } else {
         mappedService = 'Cuci Komplit';
       }
 

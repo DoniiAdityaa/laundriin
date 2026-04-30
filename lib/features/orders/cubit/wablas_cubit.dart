@@ -6,18 +6,21 @@ import 'wablas_state.dart';
 class WablasCubit extends Cubit<WablasState> {
   final ApiService apiService;
 
-  // Constructor menerima apiService
+  bool _apiEnabled = false; // <-- langsung false, selesai
+
   WablasCubit({required this.apiService}) : super(WablasInitial());
 
   Future<void> sendWhatsAppMessage(
       {required String phone, required String message}) async {
-    emit(
-        WablasLoading()); // Menandakan bahwa sedang loading (bisa buat nampilin muter-muter/AppLoading)
+    if (!_apiEnabled) {
+      emit(const WablasFailure('API WhatsApp sedang dinonaktifkan'));
+      return;
+    }
 
+    emit(WablasLoading());
     try {
       final payload = WablasMessage(phone: phone, message: message);
       await apiService.sendWhatsApp(payload);
-
       emit(const WablasSuccess("Notifikasi WhatsApp berhasil dikirim!"));
     } catch (e) {
       emit(WablasFailure(e.toString()));

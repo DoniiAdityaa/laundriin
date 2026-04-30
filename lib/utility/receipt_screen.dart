@@ -403,25 +403,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             );
           }),
         ],
-
-        // Express Charge
-        if (widget.speed.toLowerCase() == 'express' &&
-            (widget.expressCharge ?? 0) > 0) ...[
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Biaya Express',
-                style: sRegular.copyWith(color: textMuted),
-              ),
-              Text(
-                _formatNumber(widget.expressCharge ?? 0),
-                style: xsRegular.copyWith(color: textPrimary),
-              ),
-            ],
-          ),
-        ],
       ],
     );
   }
@@ -918,13 +899,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   // ===== Helper Methods =====
   String _getServiceDisplay() {
-    final service = widget.serviceType == 'washComplete'
+    final service = widget.serviceType == 'komplit'
         ? 'Cuci Komplit'
-        : widget.serviceType == 'ironing'
+        : widget.serviceType == 'setrika'
             ? 'Setrika'
-            : widget.serviceType == 'dryWash'
+            : widget.serviceType == 'kering'
                 ? 'Cuci Kering'
-                : 'Setrika Uap';
+                : 'Karpet';
 
     final categoryDisplay = widget.category == 'kiloan'
         ? 'Kiloan'

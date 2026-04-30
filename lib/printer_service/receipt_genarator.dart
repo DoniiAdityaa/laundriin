@@ -78,14 +78,7 @@ class ReceiptGenerator {
         charWidth,
       );
 
-      // Express charge kalau ada
-      if (speed == 'express' && expressCharge != null && expressCharge > 0) {
-        bytes += _textLeftRight(
-          'Express charge',
-          'Rp ${_formatNumber(expressCharge)}',
-          charWidth,
-        );
-      }
+      // Express charge is included in base price
     } else {
       // Satuan / Campuran: list items
       for (final item in items) {
@@ -97,14 +90,6 @@ class ReceiptGenerator {
         );
       }
 
-      // Express charge kalau ada
-      if (speed == 'express' && expressCharge != null && expressCharge > 0) {
-        bytes += _textLeftRight(
-          'Express charge',
-          'Rp ${_formatNumber(expressCharge)}',
-          charWidth,
-        );
-      }
     }
 
     bytes += _text(dividerDash);
@@ -254,14 +239,14 @@ class ReceiptGenerator {
 
   static String _getServiceDisplay(String serviceType) {
     switch (serviceType) {
-      case 'washComplete':
+      case 'komplit':
         return 'Cuci Komplit';
-      case 'ironing':
+      case 'setrika':
         return 'Setrika';
-      case 'dryWash':
+      case 'kering':
         return 'Cuci Kering';
-      case 'steamIroning':
-        return 'Setrika Uap';
+      case 'karpet':
+        return 'Karpet';
       default:
         return serviceType;
     }
